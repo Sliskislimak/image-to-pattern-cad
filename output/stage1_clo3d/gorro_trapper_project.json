@@ -1,0 +1,765 @@
+{
+  "project_name": "Gorro Trapper con Tapabocas",
+  "source_image": "samples/gorro_trapper.png",
+  "units": "mm",
+  "has_seam_allowance": false,
+  "pieces": [
+    {
+      "id": "fuelle_superior",
+      "name": "Fuelle superior",
+      "quantity": 1,
+      "target_width_cm": 13.0,
+      "target_height_cm": 35.0,
+      "outer_contour": {
+        "segments": [
+          {
+            "type": "line",
+            "start": {
+              "x": 0.0,
+              "y": 25.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 350.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 0.0,
+              "y": 350.0
+            },
+            "end": {
+              "x": 130.0,
+              "y": 350.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 130.0,
+              "y": 350.0
+            },
+            "end": {
+              "x": 130.0,
+              "y": 25.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 130.0,
+              "y": 25.0
+            },
+            "end": {
+              "x": 65.0,
+              "y": 0.0
+            },
+            "cp1": {
+              "x": 110.0,
+              "y": 8.0
+            },
+            "cp2": {
+              "x": 88.0,
+              "y": 0.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 65.0,
+              "y": 0.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 25.0
+            },
+            "cp1": {
+              "x": 42.0,
+              "y": 0.0
+            },
+            "cp2": {
+              "x": 20.0,
+              "y": 8.0
+            }
+          }
+        ],
+        "is_closed": true
+      },
+      "internal_lines": [],
+      "grainline_start": {
+        "x": 65.0,
+        "y": 70.0
+      },
+      "grainline_end": {
+        "x": 65.0,
+        "y": 280.0
+      },
+      "seam_allowance_mm": 0.0,
+      "fabric_note": "En tela exterior y forro (x1)"
+    },
+    {
+      "id": "frente",
+      "name": "Frente",
+      "quantity": 1,
+      "target_width_cm": 12.5,
+      "target_height_cm": 11.0,
+      "outer_contour": {
+        "segments": [
+          {
+            "type": "line",
+            "start": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "end": {
+              "x": 125.0,
+              "y": 0.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 125.0,
+              "y": 0.0
+            },
+            "end": {
+              "x": 125.0,
+              "y": 110.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 125.0,
+              "y": 110.0
+            },
+            "end": {
+              "x": 62.5,
+              "y": 90.0
+            },
+            "cp1": {
+              "x": 102.0,
+              "y": 96.0
+            },
+            "cp2": {
+              "x": 82.0,
+              "y": 90.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 62.5,
+              "y": 90.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 110.0
+            },
+            "cp1": {
+              "x": 43.0,
+              "y": 90.0
+            },
+            "cp2": {
+              "x": 23.0,
+              "y": 96.0
+            }
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 0.0,
+              "y": 110.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "cp1": null,
+            "cp2": null
+          }
+        ],
+        "is_closed": true
+      },
+      "internal_lines": [],
+      "grainline_start": {
+        "x": 62.5,
+        "y": 22.0
+      },
+      "grainline_end": {
+        "x": 62.5,
+        "y": 88.0
+      },
+      "seam_allowance_mm": 0.0,
+      "fabric_note": "En tela exterior y forro (x1)"
+    },
+    {
+      "id": "visera",
+      "name": "Visera",
+      "quantity": 2,
+      "target_width_cm": 20.0,
+      "target_height_cm": 11.0,
+      "outer_contour": {
+        "segments": [
+          {
+            "type": "line",
+            "start": {
+              "x": 0.0,
+              "y": 35.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 110.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 0.0,
+              "y": 110.0
+            },
+            "end": {
+              "x": 100.0,
+              "y": 96.0
+            },
+            "cp1": {
+              "x": 35.0,
+              "y": 100.0
+            },
+            "cp2": {
+              "x": 68.0,
+              "y": 96.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 100.0,
+              "y": 96.0
+            },
+            "end": {
+              "x": 200.0,
+              "y": 110.0
+            },
+            "cp1": {
+              "x": 132.0,
+              "y": 96.0
+            },
+            "cp2": {
+              "x": 165.0,
+              "y": 100.0
+            }
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 200.0,
+              "y": 110.0
+            },
+            "end": {
+              "x": 200.0,
+              "y": 35.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 200.0,
+              "y": 35.0
+            },
+            "end": {
+              "x": 100.0,
+              "y": 0.0
+            },
+            "cp1": {
+              "x": 182.0,
+              "y": 8.0
+            },
+            "cp2": {
+              "x": 145.0,
+              "y": 0.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 100.0,
+              "y": 0.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 35.0
+            },
+            "cp1": {
+              "x": 55.0,
+              "y": 0.0
+            },
+            "cp2": {
+              "x": 18.0,
+              "y": 8.0
+            }
+          }
+        ],
+        "is_closed": true
+      },
+      "internal_lines": [],
+      "grainline_start": {
+        "x": 100.0,
+        "y": 22.0
+      },
+      "grainline_end": {
+        "x": 100.0,
+        "y": 88.0
+      },
+      "seam_allowance_mm": 0.0,
+      "fabric_note": "En tela exterior (x2)"
+    },
+    {
+      "id": "cubre_boca",
+      "name": "Cubre boca",
+      "quantity": 1,
+      "target_width_cm": 28.0,
+      "target_height_cm": 14.0,
+      "outer_contour": {
+        "segments": [
+          {
+            "type": "line",
+            "start": {
+              "x": 0.0,
+              "y": 30.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 110.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 0.0,
+              "y": 110.0
+            },
+            "end": {
+              "x": 140.0,
+              "y": 140.0
+            },
+            "cp1": {
+              "x": 45.0,
+              "y": 132.0
+            },
+            "cp2": {
+              "x": 92.0,
+              "y": 140.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 140.0,
+              "y": 140.0
+            },
+            "end": {
+              "x": 280.0,
+              "y": 110.0
+            },
+            "cp1": {
+              "x": 188.0,
+              "y": 140.0
+            },
+            "cp2": {
+              "x": 235.0,
+              "y": 132.0
+            }
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 280.0,
+              "y": 110.0
+            },
+            "end": {
+              "x": 280.0,
+              "y": 30.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 280.0,
+              "y": 30.0
+            },
+            "end": {
+              "x": 140.0,
+              "y": 0.0
+            },
+            "cp1": {
+              "x": 235.0,
+              "y": 8.0
+            },
+            "cp2": {
+              "x": 188.0,
+              "y": 0.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 140.0,
+              "y": 0.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 30.0
+            },
+            "cp1": {
+              "x": 92.0,
+              "y": 0.0
+            },
+            "cp2": {
+              "x": 45.0,
+              "y": 8.0
+            }
+          }
+        ],
+        "is_closed": true
+      },
+      "internal_lines": [],
+      "grainline_start": {
+        "x": 60.0,
+        "y": 70.0
+      },
+      "grainline_end": {
+        "x": 220.0,
+        "y": 70.0
+      },
+      "seam_allowance_mm": 0.0,
+      "fabric_note": "En tela exterior - elastizar arriba y abajo (x1)"
+    },
+    {
+      "id": "lateral",
+      "name": "Lateral",
+      "quantity": 2,
+      "target_width_cm": 10.0,
+      "target_height_cm": 20.0,
+      "outer_contour": {
+        "segments": [
+          {
+            "type": "line",
+            "start": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 200.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 0.0,
+              "y": 200.0
+            },
+            "end": {
+              "x": 100.0,
+              "y": 140.0
+            },
+            "cp1": {
+              "x": 55.0,
+              "y": 200.0
+            },
+            "cp2": {
+              "x": 100.0,
+              "y": 182.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 100.0,
+              "y": 140.0
+            },
+            "end": {
+              "x": 85.0,
+              "y": 75.0
+            },
+            "cp1": {
+              "x": 100.0,
+              "y": 115.0
+            },
+            "cp2": {
+              "x": 90.0,
+              "y": 95.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 85.0,
+              "y": 75.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "cp1": {
+              "x": 78.0,
+              "y": 42.0
+            },
+            "cp2": {
+              "x": 45.0,
+              "y": 10.0
+            }
+          }
+        ],
+        "is_closed": true
+      },
+      "internal_lines": [],
+      "grainline_start": {
+        "x": 50.0,
+        "y": 40.0
+      },
+      "grainline_end": {
+        "x": 50.0,
+        "y": 160.0
+      },
+      "seam_allowance_mm": 0.0,
+      "fabric_note": "En tela exterior y forro (x2)"
+    },
+    {
+      "id": "orejera_compuesta",
+      "name": "Orejera Compuesta",
+      "quantity": 2,
+      "target_width_cm": 25.0,
+      "target_height_cm": 19.5,
+      "outer_contour": {
+        "segments": [
+          {
+            "type": "line",
+            "start": {
+              "x": 160.0,
+              "y": 195.0
+            },
+            "end": {
+              "x": 250.0,
+              "y": 195.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 250.0,
+              "y": 195.0
+            },
+            "end": {
+              "x": 250.0,
+              "y": 20.0
+            },
+            "cp1": null,
+            "cp2": null
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 250.0,
+              "y": 20.0
+            },
+            "end": {
+              "x": 25.0,
+              "y": 0.0
+            },
+            "cp1": {
+              "x": 185.0,
+              "y": 22.0
+            },
+            "cp2": {
+              "x": 95.0,
+              "y": 8.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 25.0,
+              "y": 0.0
+            },
+            "end": {
+              "x": 0.0,
+              "y": 28.0
+            },
+            "cp1": {
+              "x": 5.0,
+              "y": 0.0
+            },
+            "cp2": {
+              "x": 0.0,
+              "y": 12.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 0.0,
+              "y": 28.0
+            },
+            "end": {
+              "x": 32.0,
+              "y": 64.0
+            },
+            "cp1": {
+              "x": 0.0,
+              "y": 44.0
+            },
+            "cp2": {
+              "x": 12.0,
+              "y": 56.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 32.0,
+              "y": 64.0
+            },
+            "end": {
+              "x": 132.0,
+              "y": 135.0
+            },
+            "cp1": {
+              "x": 78.0,
+              "y": 82.0
+            },
+            "cp2": {
+              "x": 112.0,
+              "y": 102.0
+            }
+          },
+          {
+            "type": "cubic_bezier",
+            "start": {
+              "x": 132.0,
+              "y": 135.0
+            },
+            "end": {
+              "x": 160.0,
+              "y": 195.0
+            },
+            "cp1": {
+              "x": 145.0,
+              "y": 156.0
+            },
+            "cp2": {
+              "x": 154.0,
+              "y": 175.0
+            }
+          }
+        ],
+        "is_closed": true
+      },
+      "internal_lines": [
+        {
+          "id": "orejera_horizontal_8",
+          "label": "Line 8cm",
+          "line_type": "cut_guide",
+          "contour": {
+            "segments": [
+              {
+                "type": "line",
+                "start": {
+                  "x": 132.0,
+                  "y": 115.0
+                },
+                "end": {
+                  "x": 250.0,
+                  "y": 115.0
+                },
+                "cp1": null,
+                "cp2": null
+              }
+            ],
+            "is_closed": false
+          }
+        },
+        {
+          "id": "orejera_dart_v_lower",
+          "label": "V-cut 1",
+          "line_type": "dart",
+          "contour": {
+            "segments": [
+              {
+                "type": "line",
+                "start": {
+                  "x": 132.0,
+                  "y": 115.0
+                },
+                "end": {
+                  "x": 218.0,
+                  "y": 20.0
+                },
+                "cp1": null,
+                "cp2": null
+              }
+            ],
+            "is_closed": false
+          }
+        },
+        {
+          "id": "orejera_dart_v_upper",
+          "label": "V-cut 2 (3cm)",
+          "line_type": "dart",
+          "contour": {
+            "segments": [
+              {
+                "type": "line",
+                "start": {
+                  "x": 145.0,
+                  "y": 148.0
+                },
+                "end": {
+                  "x": 248.0,
+                  "y": 20.0
+                },
+                "cp1": null,
+                "cp2": null
+              }
+            ],
+            "is_closed": false
+          }
+        }
+      ],
+      "grainline_start": {
+        "x": 195.0,
+        "y": 45.0
+      },
+      "grainline_end": {
+        "x": 195.0,
+        "y": 175.0
+      },
+      "seam_allowance_mm": 0.0,
+      "fabric_note": "En tela exterior y forro (x2)"
+    }
+  ]
+}

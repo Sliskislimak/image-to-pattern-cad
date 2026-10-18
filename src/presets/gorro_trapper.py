@@ -60,18 +60,19 @@ def build_frente() -> PatternPiece:
     2. Frente (x1):
     - Wymiary: 12,5 cm (125 mm) szerokości x 11 cm (110 mm) wysokości.
     - Dół i boki proste, górna krawędź wklęsła o 2 cm (20 mm) w środku (y = 90 mm).
+    - Dolna krawędź to linia zgięcia (doblez / fold, 0 mm).
     """
     segments = [
-        # Dolna krawędź
-        PathSegment.line((0.0, 0.0), (125.0, 0.0)),
+        # Dolna krawędź (linia zgięcia / fold, 0 mm)
+        PathSegment.line((0.0, 0.0), (125.0, 0.0), edge_role="fold", seam_allowance_mm=0.0),
         # Prawa krawędź
-        PathSegment.line((125.0, 0.0), (125.0, 110.0)),
+        PathSegment.line((125.0, 0.0), (125.0, 110.0), edge_role="seam"),
         # Górny wklęsły łuk (od prawej do środka y=90)
-        PathSegment.bezier((125.0, 110.0), (102.0, 96.0), (82.0, 90.0), (62.5, 90.0)),
+        PathSegment.bezier((125.0, 110.0), (102.0, 96.0), (82.0, 90.0), (62.5, 90.0), edge_role="seam"),
         # Górny wklęsły łuk (od środka y=90 do lewej góry)
-        PathSegment.bezier((62.5, 90.0), (43.0, 90.0), (23.0, 96.0), (0.0, 110.0)),
+        PathSegment.bezier((62.5, 90.0), (43.0, 90.0), (23.0, 96.0), (0.0, 110.0), edge_role="seam"),
         # Lewa krawędź
-        PathSegment.line((0.0, 110.0), (0.0, 0.0)),
+        PathSegment.line((0.0, 110.0), (0.0, 0.0), edge_role="seam"),
     ]
     piece = PatternPiece(
         id="frente",
@@ -82,7 +83,20 @@ def build_frente() -> PatternPiece:
         outer_contour=Contour(segments=segments, is_closed=True),
         fabric_note="En tela exterior y forro (x1)",
     )
-    return calibrate_piece_anisotropic(piece)
+    calibrated = calibrate_piece_anisotropic(piece)
+    # Przywrócenie ról krawędzi i naddatków po skalowaniu anizotropowym
+    updated_segs = [
+        calibrated.outer_contour.segments[i].model_copy(
+            update={
+                "edge_role": segments[i].edge_role,
+                "seam_allowance_mm": segments[i].seam_allowance_mm,
+            }
+        )
+        for i in range(len(segments))
+    ]
+    return calibrated.model_copy(
+        update={"outer_contour": Contour(segments=updated_segs, is_closed=True)}
+    )
 
 
 def build_visera() -> PatternPiece:
@@ -120,18 +134,47 @@ def build_cubre_boca() -> PatternPiece:
     4. Cubre boca (x1 - osłona ust):
     - Wymiary: 28 cm (280 mm) szerokości x 14 cm (140 mm) wysokości.
     - Wszystkie 4 narożniki mają wcięcie 3 cm (30 mm) w pionie, tworząc kształt beczkowaty.
+    - Górna i dolna krawędź to ściągacze ("elastizar", 15 mm).
     """
     segments = [
         # Lewa pionowa krawędź (od y=30 do y=110, długość 8 cm)
-        PathSegment.line((0.0, 30.0), (0.0, 110.0)),
+        PathSegment.line((0.0, 30.0), (0.0, 110.0), edge_role="seam"),
         # Górny łuk ("elastizar") z y=110 do szczytu y=140 w środku (x=140) i z powrotem do y=110
-        PathSegment.bezier((0.0, 110.0), (45.0, 132.0), (92.0, 140.0), (140.0, 140.0)),
-        PathSegment.bezier((140.0, 140.0), (188.0, 140.0), (235.0, 132.0), (280.0, 110.0)),
+        PathSegment.bezier(
+            (0.0, 110.0),
+            (45.0, 132.0),
+            (92.0, 140.0),
+            (140.0, 140.0),
+            edge_role="elastic",
+            seam_allowance_mm=15.0,
+        ),
+        PathSegment.bezier(
+            (140.0, 140.0),
+            (188.0, 140.0),
+            (235.0, 132.0),
+            (280.0, 110.0),
+            edge_role="elastic",
+            seam_allowance_mm=15.0,
+        ),
         # Prawa pionowa krawędź (od y=110 do y=30)
-        PathSegment.line((280.0, 110.0), (280.0, 30.0)),
+        PathSegment.line((280.0, 110.0), (280.0, 30.0), edge_role="seam"),
         # Dolny łuk ("elastizar") z y=30 przez dół y=0 w środku (x=140) do (0, 30)
-        PathSegment.bezier((280.0, 30.0), (235.0, 8.0), (188.0, 0.0), (140.0, 0.0)),
-        PathSegment.bezier((140.0, 0.0), (92.0, 0.0), (45.0, 8.0), (0.0, 30.0)),
+        PathSegment.bezier(
+            (280.0, 30.0),
+            (235.0, 8.0),
+            (188.0, 0.0),
+            (140.0, 0.0),
+            edge_role="elastic",
+            seam_allowance_mm=15.0,
+        ),
+        PathSegment.bezier(
+            (140.0, 0.0),
+            (92.0, 0.0),
+            (45.0, 8.0),
+            (0.0, 30.0),
+            edge_role="elastic",
+            seam_allowance_mm=15.0,
+        ),
     ]
     piece = PatternPiece(
         id="cubre_boca",
@@ -144,7 +187,20 @@ def build_cubre_boca() -> PatternPiece:
         grainline_end=Point2D(x=220.0, y=70.0),
         fabric_note="En tela exterior - elastizar arriba y abajo (x1)",
     )
-    return calibrate_piece_anisotropic(piece)
+    calibrated = calibrate_piece_anisotropic(piece)
+    # Przywrócenie ról krawędzi i naddatków po skalowaniu anizotropowym
+    updated_segs = [
+        calibrated.outer_contour.segments[i].model_copy(
+            update={
+                "edge_role": segments[i].edge_role,
+                "seam_allowance_mm": segments[i].seam_allowance_mm,
+            }
+        )
+        for i in range(len(segments))
+    ]
+    return calibrated.model_copy(
+        update={"outer_contour": Contour(segments=updated_segs, is_closed=True)}
+    )
 
 
 def build_lateral() -> PatternPiece:

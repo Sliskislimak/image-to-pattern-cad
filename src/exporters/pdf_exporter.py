@@ -19,7 +19,11 @@ from pathlib import Path
 import pymupdf as fitz
 
 from src.core.contract import PT_PER_MM, Contour, PatternProject, Point2D
-from src.core.geometry import contour_to_shapely_polygon, get_contour_bounds
+from src.core.geometry import (
+    contour_to_shapely_polygon,
+    evaluate_cubic_bezier,
+    get_contour_bounds,
+)
 from src.exporters.dxf_exporter import compute_grid_layout, expand_project_pieces
 
 
@@ -57,7 +61,7 @@ def _compute_canvas_extents(
     max_x_mm = 0.0
     max_y_mm = 0.0
     for piece, off_x, off_y in placed_pieces:
-        _, _, px_max, py_max = get_contour_bounds(piece.outer_contour)
+        _, _, px_max, py_max = get_contour_bounds(piece.effective_boundary)
         max_x_mm = max(max_x_mm, off_x + px_max)
         max_y_mm = max(max_y_mm, off_y + py_max)
     return (max(max_x_mm, 100.0), max(max_y_mm, 100.0))
@@ -75,6 +79,8 @@ def export_clo3d_vector_pdf_1to1(
 
     Każdy element to pojedyncza zamknięta ścieżka wektorowa (Cubic Bézier + Line)
     w skali 1:1 (1 mm = 2.83464567 pt).
+    Gdy cut_contour jest obecny: linia cięcia rysowana jest linią ciągłą (1.0 pt),
+    a wewnętrzna linia szycia linią przerywaną (0.8 pt, [4 2] 0).
     """
     pieces = expand_project_pieces(project, expand_quantities=expand_quantities)
     placed = compute_grid_layout(pieces, spacing_mm=40.0)
@@ -91,23 +97,63 @@ def export_clo3d_vector_pdf_1to1(
         page = doc.new_page(width=page_w_pt, height=page_h_pt)
 
         for piece, off_x, off_y in placed:
-            outer_shape = page.new_shape()
-            _draw_contour_on_shape(
-                outer_shape,
-                piece.outer_contour,
-                off_x,
-                off_y,
-                canvas_h_mm,
-                margin_mm,
-                margin_mm,
-            )
-            outer_shape.finish(
-                color=(0.0, 0.0, 0.0),
-                fill=None,
-                width=1.0,
-                closePath=True,
-            )
-            outer_shape.commit()
+            if piece.has_cut_contour and piece.cut_contour is not None:
+                # 1. Linia cięcia (Cut Line) - solidna czarna linia (width 1.0 pt)
+                cut_shape = page.new_shape()
+                _draw_contour_on_shape(
+                    cut_shape,
+                    piece.cut_contour,
+                    off_x,
+                    off_y,
+                    canvas_h_mm,
+                    margin_mm,
+                    margin_mm,
+                )
+                cut_shape.finish(
+                    color=(0.0, 0.0, 0.0),
+                    fill=None,
+                    width=1.0,
+                    closePath=True,
+                )
+                cut_shape.commit()
+
+                # 2. Linia szycia (Net Sewing Line) - przerywana linia (width 0.8 pt, dashes [4 2] 0)
+                sew_shape = page.new_shape()
+                _draw_contour_on_shape(
+                    sew_shape,
+                    piece.outer_contour,
+                    off_x,
+                    off_y,
+                    canvas_h_mm,
+                    margin_mm,
+                    margin_mm,
+                )
+                sew_shape.finish(
+                    color=(0.17, 0.36, 0.52),
+                    dashes="[4 2] 0",
+                    fill=None,
+                    width=0.8,
+                    closePath=True,
+                )
+                sew_shape.commit()
+            else:
+                outer_shape = page.new_shape()
+                _draw_contour_on_shape(
+                    outer_shape,
+                    piece.outer_contour,
+                    off_x,
+                    off_y,
+                    canvas_h_mm,
+                    margin_mm,
+                    margin_mm,
+                )
+                outer_shape.finish(
+                    color=(0.0, 0.0, 0.0),
+                    fill=None,
+                    width=1.0,
+                    closePath=True,
+                )
+                outer_shape.commit()
 
             if include_internal_lines:
                 for internal in piece.internal_lines:
@@ -169,9 +215,15 @@ def export_technical_sheet_pdf_1to1(
             fontsize=18,
             color=(0.15, 0.15, 0.15),
         )
+        has_any_seams = project.has_seam_allowance or any(p.has_cut_contour for p in pieces)
+        subtitle = (
+            "Skala 1:1 (100%) | Jednostki bazowe: mm / cm | Z naddatkami na szwy (Con margenes de costura)"
+            if has_any_seams
+            else "Skala 1:1 (100%) | Jednostki bazowe: mm / cm | Bez zapasow na szwy (Sin margenes de costura)"
+        )
         page.insert_text(
             fitz.Point(margin_x_mm * PT_PER_MM, 38.0 * PT_PER_MM),
-            "Skala 1:1 (100%) | Jednostki bazowe: mm / cm | Bez zapasow na szwy (Sin margenes de costura)",
+            subtitle,
             fontsize=11,
             color=(0.35, 0.35, 0.35),
         )
@@ -204,33 +256,127 @@ def export_technical_sheet_pdf_1to1(
 
         for piece, off_x, off_y in placed:
             # 1. Ramka pomocnicza Bounding Boxa (jasnoszara przerywana)
-            bx0 = (margin_x_mm + off_x) * PT_PER_MM
-            by0 = (margin_top_mm + (canvas_h_mm - (off_y + piece.target_height_mm))) * PT_PER_MM
-            bx1 = bx0 + piece.target_width_mm * PT_PER_MM
-            by1 = by0 + piece.target_height_mm * PT_PER_MM
+            b_min_x, b_min_y, b_max_x, b_max_y = get_contour_bounds(piece.effective_boundary)
+            bx0 = (margin_x_mm + off_x + b_min_x) * PT_PER_MM
+            by0 = (margin_top_mm + (canvas_h_mm - (off_y + b_max_y))) * PT_PER_MM
+            bx1 = (margin_x_mm + off_x + b_max_x) * PT_PER_MM
+            by1 = (margin_top_mm + (canvas_h_mm - (off_y + b_min_y))) * PT_PER_MM
             bbox_shape = page.new_shape()
             bbox_shape.draw_rect(fitz.Rect(bx0, by0, bx1, by1))
             bbox_shape.finish(color=(0.75, 0.75, 0.75), dashes="[3 3] 0", width=0.6)
             bbox_shape.commit()
 
-            # 2. Wypełniony kontur zewnętrzny elementu (beżowy jak na rysunku)
-            outer_shape = page.new_shape()
-            _draw_contour_on_shape(
-                outer_shape,
-                piece.outer_contour,
-                off_x,
-                off_y,
-                canvas_h_mm,
-                margin_x_mm,
-                margin_top_mm,
-            )
-            outer_shape.finish(
-                color=(0.42, 0.28, 0.12),
-                fill=(0.89, 0.78, 0.56),
-                width=1.5,
-                closePath=True,
-            )
-            outer_shape.commit()
+            if piece.has_cut_contour and piece.cut_contour is not None:
+                # 2a. Wypełniony kontur cięcia (Cut Boundary) - beżowy z brązowym obrysem
+                cut_shape = page.new_shape()
+                _draw_contour_on_shape(
+                    cut_shape,
+                    piece.cut_contour,
+                    off_x,
+                    off_y,
+                    canvas_h_mm,
+                    margin_x_mm,
+                    margin_top_mm,
+                )
+                cut_shape.finish(
+                    color=(0.42, 0.28, 0.12),
+                    fill=(0.89, 0.78, 0.56),
+                    width=1.5,
+                    closePath=True,
+                )
+                cut_shape.commit()
+
+                # 2b. Net sewing line (outer_contour) - ciemnoniebieska przerywana linia szycia
+                sew_shape = page.new_shape()
+                _draw_contour_on_shape(
+                    sew_shape,
+                    piece.outer_contour,
+                    off_x,
+                    off_y,
+                    canvas_h_mm,
+                    margin_x_mm,
+                    margin_top_mm,
+                )
+                sew_shape.finish(
+                    color=(0.17, 0.36, 0.52),
+                    dashes="[4 2] 0",
+                    fill=None,
+                    width=1.1,
+                    closePath=True,
+                )
+                sew_shape.commit()
+
+                # 2c. Punkty węzłowe CAD na linii szycia (outer_contour)
+                node_shape = page.new_shape()
+                for seg in piece.outer_contour.segments:
+                    nx = (margin_x_mm + off_x + seg.start.x) * PT_PER_MM
+                    ny = (margin_top_mm + (canvas_h_mm - (off_y + seg.start.y))) * PT_PER_MM
+                    node_shape.draw_circle(fitz.Point(nx, ny), 2.2)
+                node_shape.finish(color=(0.75, 0.1, 0.1), fill=(1.0, 1.0, 1.0), width=0.8)
+                node_shape.commit()
+
+                # 2d. Etykiety naddatków na szwy przy krawędziach ("+10 mm", "+15 mm elastizar", "0 mm dobles/fold")
+                for seg in piece.outer_contour.segments:
+                    if seg.seam_allowance_mm is not None:
+                        allowance = seg.seam_allowance_mm
+                    elif seg.edge_role in ("fold", "raw"):
+                        allowance = 0.0
+                    elif seg.edge_role in ("elastic", "hem"):
+                        allowance = 15.0
+                    else:
+                        allowance = piece.seam_allowance_mm if piece.seam_allowance_mm > 0 else 10.0
+
+                    if seg.edge_role == "fold" or allowance == 0.0:
+                        ann_text = "0 mm dobles/fold"
+                    elif seg.edge_role == "elastic":
+                        ann_text = f"+{allowance:.0f} mm elastizar"
+                    elif seg.edge_role == "hem":
+                        ann_text = f"+{allowance:.0f} mm hem"
+                    else:
+                        ann_text = f"+{allowance:.0f} mm"
+
+                    if seg.type == "cubic_bezier" and seg.cp1 and seg.cp2:
+                        mid_pt = evaluate_cubic_bezier(seg.start, seg.cp1, seg.cp2, seg.end, 0.5)
+                    else:
+                        mid_pt = Point2D(x=(seg.start.x + seg.end.x) / 2.0, y=(seg.start.y + seg.end.y) / 2.0)
+
+                    mx_pt = (margin_x_mm + off_x + mid_pt.x) * PT_PER_MM
+                    my_pt = (margin_top_mm + (canvas_h_mm - (off_y + mid_pt.y))) * PT_PER_MM
+                    text_w = len(ann_text) * 4.2
+                    page.insert_text(
+                        fitz.Point(mx_pt - text_w / 2.0, my_pt - 4.0),
+                        ann_text,
+                        fontsize=7.5,
+                        color=(0.17, 0.36, 0.52),
+                    )
+            else:
+                # 2. Wypełniony kontur zewnętrzny elementu (beżowy jak na rysunku)
+                outer_shape = page.new_shape()
+                _draw_contour_on_shape(
+                    outer_shape,
+                    piece.outer_contour,
+                    off_x,
+                    off_y,
+                    canvas_h_mm,
+                    margin_x_mm,
+                    margin_top_mm,
+                )
+                outer_shape.finish(
+                    color=(0.42, 0.28, 0.12),
+                    fill=(0.89, 0.78, 0.56),
+                    width=1.5,
+                    closePath=True,
+                )
+                outer_shape.commit()
+
+                # Węzły segmentów (punkty narożne - małe kropki CAD)
+                node_shape = page.new_shape()
+                for seg in piece.outer_contour.segments:
+                    nx = (margin_x_mm + off_x + seg.start.x) * PT_PER_MM
+                    ny = (margin_top_mm + (canvas_h_mm - (off_y + seg.start.y))) * PT_PER_MM
+                    node_shape.draw_circle(fitz.Point(nx, ny), 2.2)
+                node_shape.finish(color=(0.75, 0.1, 0.1), fill=(1.0, 1.0, 1.0), width=0.8)
+                node_shape.commit()
 
             # 3. Linie wewnętrzne (czerwone)
             for internal in piece.internal_lines:
@@ -263,16 +409,7 @@ def export_technical_sheet_pdf_1to1(
                 g_shape.finish(color=(0.15, 0.55, 0.25), width=1.0)
                 g_shape.commit()
 
-            # 5. Węzły segmentów (punkty narożne - małe kropki CAD)
-            node_shape = page.new_shape()
-            for seg in piece.outer_contour.segments:
-                nx = (margin_x_mm + off_x + seg.start.x) * PT_PER_MM
-                ny = (margin_top_mm + (canvas_h_mm - (off_y + seg.start.y))) * PT_PER_MM
-                node_shape.draw_circle(fitz.Point(nx, ny), 2.2)
-            node_shape.finish(color=(0.75, 0.1, 0.1), fill=(1.0, 1.0, 1.0), width=0.8)
-            node_shape.commit()
-
-            # 6. Opis elementu wewnątrz wielokąta (przy użyciu punktu reprezentatywnego Shapely)
+            # 5. Opis elementu wewnątrz wielokąta (przy użyciu punktu reprezentatywnego Shapely)
             poly_geom = contour_to_shapely_polygon(piece.outer_contour)
             rep_pt = poly_geom.representative_point()
             label_x_mm = margin_x_mm + off_x + max(8.0, rep_pt.x - 32.0)
@@ -290,6 +427,16 @@ def export_technical_sheet_pdf_1to1(
                 fontsize=9.0,
                 color=(0.25, 0.2, 0.15),
             )
+            if piece.has_cut_contour and piece.cut_contour is not None:
+                c_min_x, c_min_y, c_max_x, c_max_y = get_contour_bounds(piece.cut_contour)
+                cut_w_mm = c_max_x - c_min_x
+                cut_h_mm = c_max_y - c_min_y
+                page.insert_text(
+                    fitz.Point(label_x_mm * PT_PER_MM, label_y_mm * PT_PER_MM + 25.0),
+                    f"Cięcie: {cut_w_mm:.1f} x {cut_h_mm:.1f} mm (Naddatek: {piece.seam_allowance_mm:.0f} mm)",
+                    fontsize=8.0,
+                    color=(0.35, 0.25, 0.15),
+                )
 
         doc.save(str(out))
     return out

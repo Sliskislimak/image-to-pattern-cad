@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Literal
 import ezdxf
 
-from src.core.contract import Contour, PatternPiece, PatternProject, Point2D
+from src.core.contract import Contour, PathSegment, PatternPiece, PatternProject, Point2D
 from src.core.geometry import (
     contour_to_points,
     contour_to_shapely_polygon,
@@ -38,11 +38,28 @@ def _mirror_piece_x(piece: PatternPiece, suffix: str = "_R") -> PatternPiece:
     W = piece.target_width_mm
 
     def _flip_contour(c: Contour) -> Contour:
-        # Odbicie: x' = W - x
-        flipped = transform_contour(c, sx=-1.0, sy=1.0, dx=W, dy=0.0)
-        return flipped
+        # Odbicie w osi X: x' = W - x z zachowaniem metadanych segmentów
+        new_segments: list[PathSegment] = []
+        for seg in c.segments:
+            start = seg.start.scaled(-1.0, 1.0).translated(W, 0.0)
+            end = seg.end.scaled(-1.0, 1.0).translated(W, 0.0)
+            cp1 = seg.cp1.scaled(-1.0, 1.0).translated(W, 0.0) if seg.cp1 else None
+            cp2 = seg.cp2.scaled(-1.0, 1.0).translated(W, 0.0) if seg.cp2 else None
+            new_segments.append(
+                PathSegment(
+                    type=seg.type,
+                    start=start,
+                    end=end,
+                    cp1=cp1,
+                    cp2=cp2,
+                    seam_allowance_mm=seg.seam_allowance_mm,
+                    edge_role=seg.edge_role,
+                )
+            )
+        return Contour(segments=new_segments, is_closed=c.is_closed)
 
     new_outer = _flip_contour(piece.outer_contour)
+    new_cut = _flip_contour(piece.cut_contour) if piece.cut_contour is not None else None
     new_internals = [
         line.model_copy(update={"contour": _flip_contour(line.contour)})
         for line in piece.internal_lines
@@ -64,6 +81,7 @@ def _mirror_piece_x(piece: PatternPiece, suffix: str = "_R") -> PatternPiece:
             "name": f"{piece.name}{suffix}",
             "quantity": 1,
             "outer_contour": new_outer,
+            "cut_contour": new_cut,
             "internal_lines": new_internals,
             "grainline_start": g_start,
             "grainline_end": g_end,
@@ -111,6 +129,8 @@ def compute_grid_layout(
     """
     Rozmieszcza elementy w przejrzystej siatce 2D (bez nakładania się),
     zwracając listę krotek: (piece, offset_x_mm, offset_y_mm).
+    Oblicza bounding box na podstawie piece.effective_boundary,
+    dzięki czemu elementy z naddatkami na szwy nie nachodzą na siebie.
     """
     layout: list[tuple[PatternPiece, float, float]] = []
     cursor_x = 0.0
@@ -118,7 +138,7 @@ def compute_grid_layout(
     row_max_h = 0.0
 
     for piece in pieces:
-        min_x, min_y, max_x, max_y = get_contour_bounds(piece.outer_contour)
+        min_x, min_y, max_x, max_y = get_contour_bounds(piece.effective_boundary)
         w = max_x - min_x
         h = max_y - min_y
 
@@ -127,7 +147,9 @@ def compute_grid_layout(
             cursor_y += row_max_h + spacing_mm
             row_max_h = 0.0
 
-        layout.append((piece, cursor_x, cursor_y))
+        off_x = cursor_x - min_x
+        off_y = cursor_y - min_y
+        layout.append((piece, off_x, off_y))
         cursor_x += w + spacing_mm
         row_max_h = max(row_max_h, h)
 
@@ -158,7 +180,7 @@ def export_clo3d_dxf(
     # Rejestracja warstw AAMA
     layers_spec = [
         (AAMA_LAYER_BOUNDARY, 7),   # 7 = biały/czarny (obrys zewnętrzny cięcia)
-        (AAMA_LAYER_INTERNAL, 1),   # 1 = czerwony (linie wewnętrzne / zaszywki)
+        (AAMA_LAYER_INTERNAL, 1),   # 1 = czerwony (linie wewnętrzne / zaszywki / linia szycia)
         (AAMA_LAYER_GRAINLINE, 3),  # 3 = zielony (nitka prosta)
         (AAMA_LAYER_TEXT, 5),       # 5 = niebieski (opisy tekstowe)
     ]
@@ -175,21 +197,50 @@ def export_clo3d_dxf(
         block_name = f"PIECE_{idx}_{clean_id}"[:31]
         block = doc.blocks.new(name=block_name)
 
-        # 1. Obrys zewnętrzny na warstwie '1' (zamknięta POLYLINE 2D)
-        outer_pts_mm = contour_to_points(piece.outer_contour, steps_per_curve=steps_per_curve)
-        outer_pts_scaled = [(x * scale, y * scale) for x, y in outer_pts_mm]
-        if len(outer_pts_scaled) >= 2:
-            p0, p_end = outer_pts_scaled[0], outer_pts_scaled[-1]
-            if math.hypot(p0[0] - p_end[0], p0[1] - p_end[1]) < 1e-4:
-                outer_pts_scaled = outer_pts_scaled[:-1]
+        if piece.has_cut_contour and piece.cut_contour is not None:
+            # 1. Obrys cięcia (Cut Boundary) na warstwie '1' (zamknięta POLYLINE 2D)
+            cut_pts_mm = contour_to_points(piece.cut_contour, steps_per_curve=steps_per_curve)
+            cut_pts_scaled = [(x * scale, y * scale) for x, y in cut_pts_mm]
+            if len(cut_pts_scaled) >= 2:
+                p0, p_end = cut_pts_scaled[0], cut_pts_scaled[-1]
+                if math.hypot(p0[0] - p_end[0], p0[1] - p_end[1]) < 1e-4:
+                    cut_pts_scaled = cut_pts_scaled[:-1]
 
-        poly = block.add_polyline2d(
-            outer_pts_scaled,
-            close=True,
-            dxfattribs={"layer": AAMA_LAYER_BOUNDARY},
-        )
+            block.add_polyline2d(
+                cut_pts_scaled,
+                close=True,
+                dxfattribs={"layer": AAMA_LAYER_BOUNDARY},
+            )
 
-        # 2. Linie wewnętrzne na warstwie '4'
+            # 2. Net sewing line (outer_contour) na warstwie '4' (zamknięta POLYLINE 2D)
+            sew_pts_mm = contour_to_points(piece.outer_contour, steps_per_curve=steps_per_curve)
+            sew_pts_scaled = [(x * scale, y * scale) for x, y in sew_pts_mm]
+            if len(sew_pts_scaled) >= 2:
+                p0, p_end = sew_pts_scaled[0], sew_pts_scaled[-1]
+                if math.hypot(p0[0] - p_end[0], p0[1] - p_end[1]) < 1e-4:
+                    sew_pts_scaled = sew_pts_scaled[:-1]
+
+            block.add_polyline2d(
+                sew_pts_scaled,
+                close=True,
+                dxfattribs={"layer": AAMA_LAYER_INTERNAL},
+            )
+        else:
+            # Obrys zewnętrzny bazowy na warstwie '1' (zamknięta POLYLINE 2D)
+            outer_pts_mm = contour_to_points(piece.outer_contour, steps_per_curve=steps_per_curve)
+            outer_pts_scaled = [(x * scale, y * scale) for x, y in outer_pts_mm]
+            if len(outer_pts_scaled) >= 2:
+                p0, p_end = outer_pts_scaled[0], outer_pts_scaled[-1]
+                if math.hypot(p0[0] - p_end[0], p0[1] - p_end[1]) < 1e-4:
+                    outer_pts_scaled = outer_pts_scaled[:-1]
+
+            block.add_polyline2d(
+                outer_pts_scaled,
+                close=True,
+                dxfattribs={"layer": AAMA_LAYER_BOUNDARY},
+            )
+
+        # 3. Linie wewnętrzne na warstwie '4'
         for internal in piece.internal_lines:
             int_pts_mm = contour_to_points(internal.contour, steps_per_curve=steps_per_curve)
             int_pts_scaled = [(x * scale, y * scale) for x, y in int_pts_mm]
@@ -199,7 +250,7 @@ def export_clo3d_dxf(
                 dxfattribs={"layer": AAMA_LAYER_INTERNAL},
             )
 
-        # 3. Linia nitki prostej (Grainline) na warstwie '7'
+        # 4. Linia nitki prostej (Grainline) na warstwie '7'
         if piece.grainline_start and piece.grainline_end:
             block.add_line(
                 start=(piece.grainline_start.x * scale, piece.grainline_start.y * scale),
@@ -207,8 +258,8 @@ def export_clo3d_dxf(
                 dxfattribs={"layer": AAMA_LAYER_GRAINLINE},
             )
 
-        # 4. Etykieta tekstowa AAMA wewnątrz bloku na warstwie '8'
-        poly_geom = contour_to_shapely_polygon(piece.outer_contour)
+        # 5. Etykieta tekstowa AAMA wewnątrz bloku na warstwie '8'
+        poly_geom = contour_to_shapely_polygon(piece.effective_boundary)
         rep_pt = poly_geom.representative_point()
         cx = max(10.0, rep_pt.x - piece.target_width_mm * 0.18) * scale
         cy = rep_pt.y * scale
@@ -229,6 +280,15 @@ def export_clo3d_dxf(
                 "height": text_height * 0.85,
             },
         )
+        if piece.has_cut_contour:
+            block.add_text(
+                f"Seam: {piece.seam_allowance_mm:.1f} mm",
+                dxfattribs={
+                    "layer": AAMA_LAYER_TEXT,
+                    "insert": (cx, cy - text_height * 3.0),
+                    "height": text_height * 0.85,
+                },
+            )
 
         # Wstawienie bloku na MODELSPACE we właściwym miejscu siatki 2D
         msp.add_blockref(

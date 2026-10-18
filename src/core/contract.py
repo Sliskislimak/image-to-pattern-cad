@@ -42,12 +42,17 @@ class Point2D(BaseModel):
         return Point2D(x=self.x + dx, y=self.y + dy)
 
 
+EdgeRole = Literal["seam", "fold", "hem", "elastic", "raw"]
+
+
 class PathSegment(BaseModel):
     """
     Pojedynczy segment ścieżki geometrycznej:
     - 'line': odcinek prosty od `start` do `end`
     - 'cubic_bezier': krzywa Béziera 3. stopnia od `start` do `end`
       z punktami kontrolnymi `cp1` oraz `cp2`.
+    - `seam_allowance_mm`: indywidualny naddatek na szew w mm (jeśli None, używany naddatek elementu).
+    - `edge_role`: rola krawędzi ('seam', 'fold', 'hem', 'elastic', 'raw').
     """
 
     type: Literal["line", "cubic_bezier"] = "line"
@@ -55,12 +60,33 @@ class PathSegment(BaseModel):
     end: Point2D
     cp1: Optional[Point2D] = None
     cp2: Optional[Point2D] = None
+    seam_allowance_mm: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        description="Indywidualny naddatek na szew w mm. Jeśli None, pobiera domyślną wartość z PatternPiece.seam_allowance_mm.",
+    )
+    edge_role: EdgeRole = Field(
+        default="seam",
+        description="Rola technologiczna krawędzi: 'seam', 'fold', 'hem', 'elastic', 'raw'.",
+    )
 
     @classmethod
-    def line(cls, start: tuple[float, float] | Point2D, end: tuple[float, float] | Point2D) -> PathSegment:
+    def line(
+        cls,
+        start: tuple[float, float] | Point2D,
+        end: tuple[float, float] | Point2D,
+        seam_allowance_mm: Optional[float] = None,
+        edge_role: EdgeRole = "seam",
+    ) -> PathSegment:
         s = start if isinstance(start, Point2D) else Point2D(x=start[0], y=start[1])
         e = end if isinstance(end, Point2D) else Point2D(x=end[0], y=end[1])
-        return cls(type="line", start=s, end=e)
+        return cls(
+            type="line",
+            start=s,
+            end=e,
+            seam_allowance_mm=seam_allowance_mm,
+            edge_role=edge_role,
+        )
 
     @classmethod
     def bezier(
@@ -69,12 +95,22 @@ class PathSegment(BaseModel):
         cp1: tuple[float, float] | Point2D,
         cp2: tuple[float, float] | Point2D,
         end: tuple[float, float] | Point2D,
+        seam_allowance_mm: Optional[float] = None,
+        edge_role: EdgeRole = "seam",
     ) -> PathSegment:
         s = start if isinstance(start, Point2D) else Point2D(x=start[0], y=start[1])
         c1 = cp1 if isinstance(cp1, Point2D) else Point2D(x=cp1[0], y=cp1[1])
         c2 = cp2 if isinstance(cp2, Point2D) else Point2D(x=cp2[0], y=cp2[1])
         e = end if isinstance(end, Point2D) else Point2D(x=end[0], y=end[1])
-        return cls(type="cubic_bezier", start=s, cp1=c1, cp2=c2, end=e)
+        return cls(
+            type="cubic_bezier",
+            start=s,
+            cp1=c1,
+            cp2=c2,
+            end=e,
+            seam_allowance_mm=seam_allowance_mm,
+            edge_role=edge_role,
+        )
 
 
 class Contour(BaseModel):
@@ -113,12 +149,25 @@ class PatternPiece(BaseModel):
     quantity: int = Field(default=1, ge=1, description="Liczba sztuk do wycięcia (np. x1, x2)")
     target_width_cm: float = Field(gt=0, description="Docelowa szerokość elementu w cm")
     target_height_cm: float = Field(gt=0, description="Docelowa wysokość elementu w cm")
-    outer_contour: Contour
+    outer_contour: Contour  # Net sewing line
+    cut_contour: Optional[Contour] = Field(
+        default=None,
+        description="Zewnętrzny obrys cięcia z uwzględnieniem naddatków na szwy (Cut Line).",
+    )
     internal_lines: list[InternalLine] = Field(default_factory=list)
     grainline_start: Optional[Point2D] = None
     grainline_end: Optional[Point2D] = None
     seam_allowance_mm: float = Field(default=0.0, ge=0.0)
     fabric_note: str = ""
+
+    @property
+    def has_cut_contour(self) -> bool:
+        return self.cut_contour is not None and len(self.cut_contour.segments) > 0
+
+    @property
+    def effective_boundary(self) -> Contour:
+        """Zwraca cut_contour jeśli istnieje, w przeciwnym razie outer_contour."""
+        return self.cut_contour if self.has_cut_contour else self.outer_contour
 
     @property
     def target_width_mm(self) -> float:

@@ -12,6 +12,10 @@ __pycache__/
 .vscode/
 .idea/
 
+# Multi-agent orchestration workspace
+.agents/
+ORIGINAL_REQUEST.md
+
 # OS specific
 Thumbs.db
 Desktop.ini

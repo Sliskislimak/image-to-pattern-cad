@@ -1593,6 +1593,7 @@
         "is_closed": true
       },
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 65.0,
         "y": 70.0
@@ -2743,6 +2744,7 @@
         "is_closed": true
       },
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 62.5,
         "y": 22.0
@@ -5855,6 +5857,7 @@
         "is_closed": true
       },
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 100.0,
         "y": 22.0
@@ -7947,6 +7950,7 @@
         "is_closed": true
       },
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 60.0,
         "y": 70.0
@@ -10168,6 +10172,7 @@
         "is_closed": true
       },
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 50.0,
         "y": 40.0
@@ -14082,6 +14087,7 @@
           }
         }
       ],
+      "notches": [],
       "grainline_start": {
         "x": 195.0,
         "y": 45.0

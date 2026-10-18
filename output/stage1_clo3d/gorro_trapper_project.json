@@ -23,7 +23,9 @@
               "y": 350.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "line",
@@ -36,7 +38,9 @@
               "y": 350.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "line",
@@ -49,7 +53,9 @@
               "y": 25.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -68,7 +74,9 @@
             "cp2": {
               "x": 88.0,
               "y": 0.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -87,12 +95,16 @@
             "cp2": {
               "x": 20.0,
               "y": 8.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           }
         ],
         "is_closed": true
       },
+      "cut_contour": null,
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 65.0,
         "y": 70.0
@@ -123,7 +135,9 @@
               "y": 0.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": 0.0,
+            "edge_role": "fold"
           },
           {
             "type": "line",
@@ -136,7 +150,9 @@
               "y": 110.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -155,7 +171,9 @@
             "cp2": {
               "x": 82.0,
               "y": 90.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -174,7 +192,9 @@
             "cp2": {
               "x": 23.0,
               "y": 96.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "line",
@@ -187,12 +207,16 @@
               "y": 0.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           }
         ],
         "is_closed": true
       },
+      "cut_contour": null,
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 62.5,
         "y": 22.0
@@ -223,7 +247,9 @@
               "y": 110.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -242,7 +268,9 @@
             "cp2": {
               "x": 68.0,
               "y": 96.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -261,7 +289,9 @@
             "cp2": {
               "x": 165.0,
               "y": 100.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "line",
@@ -274,7 +304,9 @@
               "y": 35.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -293,7 +325,9 @@
             "cp2": {
               "x": 145.0,
               "y": 0.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -312,12 +346,16 @@
             "cp2": {
               "x": 18.0,
               "y": 8.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           }
         ],
         "is_closed": true
       },
+      "cut_contour": null,
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 100.0,
         "y": 22.0
@@ -348,7 +386,9 @@
               "y": 110.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -367,7 +407,9 @@
             "cp2": {
               "x": 92.0,
               "y": 140.0
-            }
+            },
+            "seam_allowance_mm": 15.0,
+            "edge_role": "elastic"
           },
           {
             "type": "cubic_bezier",
@@ -386,7 +428,9 @@
             "cp2": {
               "x": 235.0,
               "y": 132.0
-            }
+            },
+            "seam_allowance_mm": 15.0,
+            "edge_role": "elastic"
           },
           {
             "type": "line",
@@ -399,7 +443,9 @@
               "y": 30.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -418,7 +464,9 @@
             "cp2": {
               "x": 188.0,
               "y": 0.0
-            }
+            },
+            "seam_allowance_mm": 15.0,
+            "edge_role": "elastic"
           },
           {
             "type": "cubic_bezier",
@@ -437,12 +485,16 @@
             "cp2": {
               "x": 45.0,
               "y": 8.0
-            }
+            },
+            "seam_allowance_mm": 15.0,
+            "edge_role": "elastic"
           }
         ],
         "is_closed": true
       },
+      "cut_contour": null,
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 60.0,
         "y": 70.0
@@ -473,7 +525,9 @@
               "y": 200.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -492,7 +546,9 @@
             "cp2": {
               "x": 100.0,
               "y": 182.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -511,7 +567,9 @@
             "cp2": {
               "x": 90.0,
               "y": 95.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -530,12 +588,16 @@
             "cp2": {
               "x": 45.0,
               "y": 10.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           }
         ],
         "is_closed": true
       },
+      "cut_contour": null,
       "internal_lines": [],
+      "notches": [],
       "grainline_start": {
         "x": 50.0,
         "y": 40.0
@@ -566,7 +628,9 @@
               "y": 195.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "line",
@@ -579,7 +643,9 @@
               "y": 20.0
             },
             "cp1": null,
-            "cp2": null
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -598,7 +664,9 @@
             "cp2": {
               "x": 95.0,
               "y": 8.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -617,7 +685,9 @@
             "cp2": {
               "x": 0.0,
               "y": 12.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -636,7 +706,9 @@
             "cp2": {
               "x": 12.0,
               "y": 56.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -655,7 +727,9 @@
             "cp2": {
               "x": 112.0,
               "y": 102.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           },
           {
             "type": "cubic_bezier",
@@ -674,11 +748,14 @@
             "cp2": {
               "x": 154.0,
               "y": 175.0
-            }
+            },
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
           }
         ],
         "is_closed": true
       },
+      "cut_contour": null,
       "internal_lines": [
         {
           "id": "orejera_horizontal_8",
@@ -697,7 +774,9 @@
                   "y": 115.0
                 },
                 "cp1": null,
-                "cp2": null
+                "cp2": null,
+                "seam_allowance_mm": null,
+                "edge_role": "seam"
               }
             ],
             "is_closed": false
@@ -720,7 +799,9 @@
                   "y": 20.0
                 },
                 "cp1": null,
-                "cp2": null
+                "cp2": null,
+                "seam_allowance_mm": null,
+                "edge_role": "seam"
               }
             ],
             "is_closed": false
@@ -743,13 +824,16 @@
                   "y": 20.0
                 },
                 "cp1": null,
-                "cp2": null
+                "cp2": null,
+                "seam_allowance_mm": null,
+                "edge_role": "seam"
               }
             ],
             "is_closed": false
           }
         }
       ],
+      "notches": [],
       "grainline_start": {
         "x": 195.0,
         "y": 45.0

@@ -406,10 +406,62 @@ python run_stage1.py
 
 ---
 
-## 🗺️ Mapa Drogowa Kolejnych Etapów
+---
 
-- [x] **Etap 1**: Fundament Architektury, Kontrakt Danych `PatternProject` i Eksporter do Clo3D (DXF-AAMA + Wektorowy PDF 1:1).
-- [x] **Etap 2**: Konfigurowalny silnik zapasów na szwy (Uniform `pyclipper` `JT_MITER` + Variable per-edge), podwójny silnik upakowania 2D (Hybrid Smart Pack & Tile + Poster Grid) i kafelkowania wielostronicowego A4 z podwójnymi konturami (linia cięcia + szycia netto) dla Clo3D i domowego druku DIY.
-- [ ] **Etap 3**: Moduł Computer Vision / AI (`vtracer` + `SAM 2` + `fitCurves`) do automatycznego wycinania i wektoryzacji elementów bezpośrednio z wgranego zdjęcia.
-- [ ] **Etap 4**: Moduł AI Vision (Gemini API) do automatycznego odczytu wymiarów, adnotacji i mnożników z grafiki.
-- [ ] **Etap 5**: Interaktywny edytor w przeglądarce (**React + TypeScript + Paper.js**) z manipulacją węzłami i podglądem na żywo.
+## 🗺️ Zaktualizowana Mapa Drogowa Projektu (Roadmap)
+
+Zgodnie z uaktualnioną metodyką inżynierii krawieckiej, potok przetwarzania został zorganizowany według naturalnej logiki powstawania wykroju:
+
+```mermaid
+flowchart TD
+    subgraph E1 ["Etap 1: Fundament CAD & Semantyka Krawiecka [UKOŃCZONY]"]
+        A1["Kontrakt danych Pydantic V2<br/>(Typy: CUT, FOLD, SEAM, SLIT, DART, NOTCH)"]
+        A2["Silnik geometrii 2D & Unfold<br/>(Kalibracja anizotropowa, rozkładanie zgięć unfold)"]
+        A3["Eksportery Clo3D DXF-AAMA R12<br/>(Warstwy: 1 Boundary, 2 Notches, 4 Internal, 5 Fold, 7 Grainline, 8 Text)"]
+    end
+
+    subgraph E2 ["NOWY ETAP 2: Percepcja, Skala & Semantyka Obrazu [NOWY PRIORYTET]"]
+        B1["1. Odzyskiwanie skali (Scale Recovery)<br/>• Wymiary tekstowe (OCR)<br/>• Kalibracja 2 punktów użytkownika ('to ma 40 cm')<br/>• Kwadrat kontrolny 5x5 cm / DPI"]
+        B2["2. Klasyfikacja semantyczna linii<br/>• Linia cięcia (Cut)<br/>• Linia zgięcia (Fold / Doblez)<br/>• Wewnętrzne rozcięcia i zaszewki (Slits / Darts)<br/>• Flaga zapasów: czy szwy są już wrysowane na grafice?<br/>• Karbiki pasowania (Notches)"]
+        B3["3. Wektoryzacja rastra (Raster-to-Vector)<br/>• Ekstrakcja konturów OpenCV / vtracer<br/>• Dopasowanie krzywych Béziera algorytmem Schneidera (fitCurves)"]
+        B1 --> B2 --> B3
+    end
+
+    subgraph E3 ["Etap 3: Zapas na Szew, 2D Nesting & Kafelkowanie A4 [UKOŃCZONY]"]
+        C1["Silnik zapasów na szwy (Pyclipper + Variable Cramer)"]
+        C2["2D Nesting (Hybrid Smart Pack + Poster Grid)"]
+        C3["Wielostronicowy PDF A4 z zakładkami 15mm i paserami R-C"]
+    end
+
+    subgraph E4 ["Etap 4: Wizualny Edytor / UI (React + Paper.js / FastAPI)"]
+        D1["Interaktywny Canvas w przeglądarce"]
+        D2["Edycja węzłów, zmiana roli krawędzi (1-klik Unfold na linii fold)"]
+        D3["Zintegrowany eksport do Clo3D i A4 PDF z poziomu UI"]
+    end
+
+    E1 --> E2 --> E3 --> E4
+```
+
+- [x] **Etap 1: Fundament Architektury, Kontrakt Danych & Standard Clo3D DXF-AAMA**
+  - Kompletny kontrakt `PatternProject` z obsługą typów `CUT`, `FOLD`, `SEAM`, `SLIT`, `NOTCH`.
+  - Pełna obsługa warstw **DXF-AAMA** (Warstwa `1` Boundary, `2` Notches, `4` Internal, `5` Fold, `7` Grainline, `8` Text).
+  - Algorytm rozkładania symetrii na linii zgięcia (`unfold_piece_on_fold`).
+  - Eksportery wektorowe PDF 1:1 oraz DXF-AAMA (mm / cm) dla Clo3D.
+- [ ] **NOWY ETAP 2: Percepcja, Skala & Semantyka Obrazu (Pattern Semantic Digitizer)**
+  - Wczytywanie dowolnej grafiki wykroju z internetu (JPG / PNG).
+  - Odzyskiwanie skali 1:1:
+    - Sytuacja A: automatyczny odczyt wymiarów z tekstu (OCR),
+    - Sytuacja B: interaktywna kalibracja z 2 punktów użytkownika (*"ten odcinek ma 40 cm"*),
+    - Sytuacja C: wykrycie kwadratu testowego $5 \times 5\text{ cm}$.
+  - Klasyfikacja semantyczna linii: rozpoznawanie zgięć (*fold/doblez*), karbików (*notches*), zaszewek (*darts*) i rozcięć wewnętrznych (*slits*).
+  - Wykrywanie wrysowanych zapasów na szew (decyzja: linia cięcia czy linia szycia).
+  - Wektoryzacja konturów do gładkich krzywych Béziera 3. stopnia (algorytm Schneidera `fitCurves`).
+- [x] **Etap 3: Silnik Zapasów na Szwy, 2D Nesting i Kafelkowanie A4 do Druku Domowego**
+  - Jednolity i zmienny (per-krawędź) silnik odsunięć szwów (`PyclipperOffset` `JT_MITER` + wektory normalne z miterem Cramera).
+  - Tryb Hybrydowy (pakowanie całych elementów na A4 + kafelkowanie ponadwymiarowych).
+  - Tryb Plakatowy (siatka $4 \times 3$ arkuszy ze wspólnego arkusza).
+  - Zakładki klejenia $15\text{ mm}$, romby pasowania $R-C$, mini-mapa montażowa i kwadrat kalibracyjny $50 \times 50\text{ mm}$.
+- [ ] **Etap 4: Wizualny Edytor / UI (React + TypeScript + Paper.js / FastAPI)**
+  - Interaktywny podgląd wektorowy w przeglądarce,
+  - Możliwość kliknięcia dowolnej krawędzi i zmiany jej typu (np. oznaczenie jako *zgięcie materiału* z natychmiastowym rozłożeniem *Unfold*).
+

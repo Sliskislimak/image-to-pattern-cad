@@ -35,71 +35,10 @@ from src.core.contract import (
 )
 from src.core.geometry import (
     contour_to_points,
+    expand_project_pieces,
     get_contour_bounds,
+    mirror_piece_x,
 )
-
-
-def mirror_piece_x(piece: PatternPiece, suffix: str = "_2") -> PatternPiece:
-    """
-    Tworzy odbicie lustrzane elementu wykroju względem osi X (dla par symetrycznych x2).
-    Obsługuje zarówno kontur szycia (outer_contour), jak i kontur cięcia (cut_contour),
-    linie wewnętrzne, nitkę prostą oraz zachowuje naddatki na szwy i role krawędzi.
-    Zwraca znormalizowany element (min_x = 0, min_y = 0).
-    """
-    min_x, min_y, max_x, max_y = get_contour_bounds(piece.effective_boundary, steps_per_curve=48)
-    W = max_x - min_x
-
-    def flip_pt(p: Optional[Point2D]) -> Optional[Point2D]:
-        if p is None:
-            return None
-        # Odbicie w osi X i normalizacja do min_x = 0, min_y = 0
-        return Point2D(x=W - (p.x - min_x), y=p.y - min_y)
-
-    def flip_contour(c: Optional[Contour]) -> Optional[Contour]:
-        if c is None:
-            return None
-        new_segs: list[PathSegment] = []
-        for s in c.segments:
-            new_segs.append(
-                PathSegment(
-                    type=s.type,
-                    start=flip_pt(s.end),  # type: ignore[arg-type]
-                    end=flip_pt(s.start),  # type: ignore[arg-type]
-                    cp1=flip_pt(s.cp2) if s.cp2 else None,
-                    cp2=flip_pt(s.cp1) if s.cp1 else None,
-                    seam_allowance_mm=s.seam_allowance_mm,
-                    edge_role=s.edge_role,
-                )
-            )
-        # Odwrócenie kolejności segmentów zachowuje orientację CCW konturu zamkniętego
-        return Contour(segments=list(reversed(new_segs)), is_closed=c.is_closed)
-
-    new_outer = flip_contour(piece.outer_contour)
-    new_cut = flip_contour(piece.cut_contour)
-    new_internals = [
-        InternalLine(
-            id=f"{il.id}{suffix}",
-            label=il.label,
-            line_type=il.line_type,
-            contour=flip_contour(il.contour),  # type: ignore[arg-type]
-        )
-        for il in piece.internal_lines
-    ]
-
-    return PatternPiece(
-        id=f"{piece.id}{suffix}",
-        name=f"{piece.name} ({suffix.lstrip('_')}/{piece.quantity})",
-        quantity=1,
-        target_width_cm=piece.target_width_cm,
-        target_height_cm=piece.target_height_cm,
-        outer_contour=new_outer,  # type: ignore[arg-type]
-        cut_contour=new_cut,
-        internal_lines=new_internals,
-        grainline_start=flip_pt(piece.grainline_start),
-        grainline_end=flip_pt(piece.grainline_end),
-        seam_allowance_mm=piece.seam_allowance_mm,
-        fabric_note=piece.fabric_note,
-    )
 
 
 def rotate_piece(piece: PatternPiece, rotation_deg: int) -> PatternPiece:
@@ -340,47 +279,6 @@ class NestingResult(BaseModel):
     layout_height_mm: float
     margin_mm: float = 10.0
     overlap_mm: float = 15.0
-
-
-def expand_project_pieces(
-    project: PatternProject,
-    mirror_symmetric: bool = True,
-) -> list[PatternPiece]:
-    """
-    Rozwija elementy projektu uwzględniając mnożniki ilości (quantity x1, x2).
-    Dla quantity > 1 tworzy ponumerowane kopie, opcjonalnie odbijając drugą sztukę lustrzanie.
-    Dla projektu Gorro Trapper zwraca dokładnie 9 elementów.
-    """
-    expanded: list[PatternPiece] = []
-    for p in project.pieces:
-        if p.quantity <= 1:
-            p_single = p.model_copy(update={"quantity": 1})
-            expanded.append(p_single)
-        else:
-            p1 = p.model_copy(
-                update={
-                    "id": f"{p.id}_1",
-                    "name": f"{p.name} (1/{p.quantity})",
-                    "quantity": 1,
-                }
-            )
-            expanded.append(p1)
-            for idx in range(2, p.quantity + 1):
-                if mirror_symmetric:
-                    p_mir = mirror_piece_x(p, suffix=f"_{idx}")
-                    p_mir.name = f"{p.name} ({idx}/{p.quantity})"
-                    p_mir.quantity = 1
-                    expanded.append(p_mir)
-                else:
-                    p_copy = p.model_copy(
-                        update={
-                            "id": f"{p.id}_{idx}",
-                            "name": f"{p.name} ({idx}/{p.quantity})",
-                            "quantity": 1,
-                        }
-                    )
-                    expanded.append(p_copy)
-    return expanded
 
 
 def classify_piece_fit(

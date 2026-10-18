@@ -22,71 +22,24 @@ from src.core.contract import Contour, PathSegment, PatternPiece, PatternProject
 from src.core.geometry import (
     contour_to_points,
     contour_to_shapely_polygon,
+    expand_project_pieces as geom_expand,
     get_contour_bounds,
+    mirror_piece_x,
     transform_contour,
 )
 
 
 AAMA_LAYER_BOUNDARY = "1"
+AAMA_LAYER_NOTCH = "2"
 AAMA_LAYER_INTERNAL = "4"
+AAMA_LAYER_FOLD = "5"
 AAMA_LAYER_GRAINLINE = "7"
 AAMA_LAYER_TEXT = "8"
 
 
 def _mirror_piece_x(piece: PatternPiece, suffix: str = "_R") -> PatternPiece:
     """Tworzy odbicie lustrzane elementu względem osi X (dla par symetrycznych x2 w Clo3D)."""
-    W = piece.target_width_mm
-
-    def _flip_contour(c: Contour) -> Contour:
-        # Odbicie w osi X: x' = W - x z zachowaniem metadanych segmentów
-        new_segments: list[PathSegment] = []
-        for seg in c.segments:
-            start = seg.start.scaled(-1.0, 1.0).translated(W, 0.0)
-            end = seg.end.scaled(-1.0, 1.0).translated(W, 0.0)
-            cp1 = seg.cp1.scaled(-1.0, 1.0).translated(W, 0.0) if seg.cp1 else None
-            cp2 = seg.cp2.scaled(-1.0, 1.0).translated(W, 0.0) if seg.cp2 else None
-            new_segments.append(
-                PathSegment(
-                    type=seg.type,
-                    start=start,
-                    end=end,
-                    cp1=cp1,
-                    cp2=cp2,
-                    seam_allowance_mm=seg.seam_allowance_mm,
-                    edge_role=seg.edge_role,
-                )
-            )
-        return Contour(segments=new_segments, is_closed=c.is_closed)
-
-    new_outer = _flip_contour(piece.outer_contour)
-    new_cut = _flip_contour(piece.cut_contour) if piece.cut_contour is not None else None
-    new_internals = [
-        line.model_copy(update={"contour": _flip_contour(line.contour)})
-        for line in piece.internal_lines
-    ]
-    g_start = (
-        Point2D(x=W - piece.grainline_start.x, y=piece.grainline_start.y)
-        if piece.grainline_start
-        else None
-    )
-    g_end = (
-        Point2D(x=W - piece.grainline_end.x, y=piece.grainline_end.y)
-        if piece.grainline_end
-        else None
-    )
-
-    return piece.model_copy(
-        update={
-            "id": f"{piece.id}{suffix.lower()}",
-            "name": f"{piece.name}{suffix}",
-            "quantity": 1,
-            "outer_contour": new_outer,
-            "cut_contour": new_cut,
-            "internal_lines": new_internals,
-            "grainline_start": g_start,
-            "grainline_end": g_end,
-        }
-    )
+    return mirror_piece_x(piece, suffix=suffix)
 
 
 def expand_project_pieces(project: PatternProject, expand_quantities: bool = False) -> list[PatternPiece]:
@@ -98,27 +51,7 @@ def expand_project_pieces(project: PatternProject, expand_quantities: bool = Fal
     """
     if not expand_quantities:
         return list(project.pieces)
-
-    expanded: list[PatternPiece] = []
-    for p in project.pieces:
-        if p.quantity <= 1:
-            expanded.append(p)
-        else:
-            # Pierwsza sztuka (L / 1)
-            p1 = p.model_copy(
-                update={
-                    "id": f"{p.id}_1",
-                    "name": f"{p.name} (1/{p.quantity})",
-                    "quantity": 1,
-                }
-            )
-            expanded.append(p1)
-            # Kolejne sztuki (odbicie lustrzane dla symetrycznych części bocznych)
-            for idx in range(2, p.quantity + 1):
-                p_mirror = _mirror_piece_x(p, suffix=f" ({idx}/{p.quantity})")
-                p_mirror.id = f"{p.id}_{idx}"
-                expanded.append(p_mirror)
-    return expanded
+    return geom_expand(project, mirror_symmetric=True)
 
 
 def compute_grid_layout(
@@ -177,12 +110,14 @@ def export_clo3d_dxf(
     doc = ezdxf.new(dxfversion="R12")
     msp = doc.modelspace()
 
-    # Rejestracja warstw AAMA
+    # Rejestracja warstw AAMA (AutoCAD R12)
     layers_spec = [
-        (AAMA_LAYER_BOUNDARY, 7),   # 7 = biały/czarny (obrys zewnętrzny cięcia)
-        (AAMA_LAYER_INTERNAL, 1),   # 1 = czerwony (linie wewnętrzne / zaszywki / linia szycia)
-        (AAMA_LAYER_GRAINLINE, 3),  # 3 = zielony (nitka prosta)
-        (AAMA_LAYER_TEXT, 5),       # 5 = niebieski (opisy tekstowe)
+        (AAMA_LAYER_BOUNDARY, 7),   # 1 = biały/czarny (obrys zewnętrzny cięcia / Boundary)
+        (AAMA_LAYER_NOTCH, 4),      # 2 = cyan (karbiki montażowe / Notches)
+        (AAMA_LAYER_INTERNAL, 1),   # 4 = czerwony (linie wewnętrzne / zaszywki / linia szycia)
+        (AAMA_LAYER_FOLD, 6),       # 5 = magenta (linie zgięcia / Fold / Mirror axis)
+        (AAMA_LAYER_GRAINLINE, 3),  # 7 = zielony (nitka prosta / Grainline)
+        (AAMA_LAYER_TEXT, 5),       # 8 = niebieski (opisy tekstowe / Annotations)
     ]
     for layer_name, color in layers_spec:
         if layer_name not in doc.layers:
@@ -240,14 +175,32 @@ def export_clo3d_dxf(
                 dxfattribs={"layer": AAMA_LAYER_BOUNDARY},
             )
 
-        # 3. Linie wewnętrzne na warstwie '4'
+        # 3. Linie wewnętrzne na warstwie '4' (lub '5' dla zgięcia fold)
         for internal in piece.internal_lines:
             int_pts_mm = contour_to_points(internal.contour, steps_per_curve=steps_per_curve)
             int_pts_scaled = [(x * scale, y * scale) for x, y in int_pts_mm]
+            layer = AAMA_LAYER_FOLD if internal.line_type == "fold" else AAMA_LAYER_INTERNAL
             block.add_polyline2d(
                 int_pts_scaled,
                 close=internal.contour.is_closed,
-                dxfattribs={"layer": AAMA_LAYER_INTERNAL},
+                dxfattribs={"layer": layer},
+            )
+
+        # 3b. Karbiki montażowe (Notches) na warstwie '2'
+        for notch in piece.notches:
+            px = notch.position.x * scale
+            py = notch.position.y * scale
+            L = notch.length_mm * scale
+            if notch.direction:
+                dx = notch.direction.x * L
+                dy = notch.direction.y * L
+            else:
+                dx = 0.0
+                dy = L
+            block.add_line(
+                start=(px, py),
+                end=(px + dx, py + dy),
+                dxfattribs={"layer": AAMA_LAYER_NOTCH},
             )
 
         # 4. Linia nitki prostej (Grainline) na warstwie '7'

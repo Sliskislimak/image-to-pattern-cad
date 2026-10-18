@@ -442,222 +442,242 @@ def export_a4_pdf(
     margin = margin_mm if margin_mm is not None else getattr(nesting_result, "margin_mm", MARGIN_MM)
     overlap = overlap_mm if overlap_mm is not None else getattr(nesting_result, "overlap_mm", OVERLAP_MM)
 
-    doc = fitz.open()
+    with fitz.open() as doc:
 
-    m_pt = margin * PT_PER_MM
-    p_w_pt = PAGE_W_PT
-    p_h_pt = PAGE_H_PT
+        m_pt = margin * PT_PER_MM
+        p_w_pt = PAGE_W_PT
+        p_h_pt = PAGE_H_PT
 
-    for page_model in nesting_result.pages:
-        page = doc.new_page(width=p_w_pt, height=p_h_pt)
-        gx0, gy0, gx1, gy1 = page_model.tile_box_mm
-        tile_rect = box(gx0, gy0, gx1, gy1)
+        for page_model in nesting_result.pages:
+            page = doc.new_page(width=p_w_pt, height=p_h_pt)
+            gx0, gy0, gx1, gy1 = page_model.tile_box_mm
+            tile_rect = box(gx0, gy0, gx1, gy1)
 
-        # 1. Ramka marginesu zadruku drukarki
-        _draw_printable_border(page, margin_mm=margin)
+            # 1. Ramka marginesu zadruku drukarki
+            _draw_printable_border(page, margin_mm=margin)
 
-        # 2. Paski klejenia i linie prowadzące dla kafelkowania
-        _draw_glue_overlap_lines(page, page_model, margin_mm=margin, overlap_mm=overlap)
+            # 2. Paski klejenia i linie prowadzące dla kafelkowania
+            _draw_glue_overlap_lines(page, page_model, margin_mm=margin, overlap_mm=overlap)
 
-        # 2b. Pasery dopasowania na granicach arkuszy
-        _draw_alignment_diamonds(page, page_model, margin_mm=margin, overlap_mm=overlap)
+            # 2b. Pasery dopasowania na granicach arkuszy
+            _draw_alignment_diamonds(page, page_model, margin_mm=margin, overlap_mm=overlap)
 
-        # 3. Rysowanie elementów wykroju (Dual Contours + Internals + Grainline + Seams)
-        cad_shape = page.new_shape()
+            # 3. Rysowanie elementów wykroju (Dual Contours + Internals + Grainline + Seams)
+            cad_shape = page.new_shape()
 
-        for pp in page_model.placed_pieces:
-            trans_p = pp.get_placed_piece()
+            for pp in page_model.placed_pieces:
+                trans_p = pp.get_placed_piece()
 
-            # Kontur cięcia (Cut Line)
-            if trans_p.has_cut_contour:
-                cut_ring = contour_to_shapely_linestring(trans_p.cut_contour, steps_per_curve=48)
-                clipped_cut = cut_ring.intersection(tile_rect)
-                _draw_shapely_geom(
-                    cad_shape,
-                    clipped_cut,
-                    gx0,
-                    gy0,
-                    color=(0.08, 0.08, 0.08),
-                    dashes=None,
-                    width=1.25,
-                    margin_mm=margin,
-                )
-
-            # Kontur szycia (Sewing Line)
-            sew_ring = contour_to_shapely_linestring(trans_p.outer_contour, steps_per_curve=48)
-            clipped_sew = sew_ring.intersection(tile_rect)
-            if trans_p.has_cut_contour:
-                # Przerywana niebieska linia szycia wewnątrz
-                _draw_shapely_geom(
-                    cad_shape,
-                    clipped_sew,
-                    gx0,
-                    gy0,
-                    color=(0.17, 0.36, 0.52),
-                    dashes="[4 2] 0",
-                    width=0.9,
-                    margin_mm=margin,
-                )
-            else:
-                # Brak naddatków -> linia zewnętrzna to stała linia cięcia
-                _draw_shapely_geom(
-                    cad_shape,
-                    clipped_sew,
-                    gx0,
-                    gy0,
-                    color=(0.08, 0.08, 0.08),
-                    dashes=None,
-                    width=1.25,
-                    margin_mm=margin,
-                )
-
-            # Linie wewnętrzne (Internal lines / darts)
-            for il in trans_p.internal_lines:
-                il_ring = contour_to_shapely_linestring(il.contour, steps_per_curve=32)
-                clipped_il = il_ring.intersection(tile_rect)
-                _draw_shapely_geom(
-                    cad_shape,
-                    clipped_il,
-                    gx0,
-                    gy0,
-                    color=(0.85, 0.2, 0.2),
-                    dashes="[4 2] 0",
-                    width=0.85,
-                    margin_mm=margin,
-                )
-
-            # Nitka prosta (Grainline)
-            if trans_p.grainline_start and trans_p.grainline_end:
-                g_line = LineString([trans_p.grainline_start.to_tuple(), trans_p.grainline_end.to_tuple()])
-                clipped_g = g_line.intersection(tile_rect)
-                if not clipped_g.is_empty:
+                # Kontur cięcia (Cut Line)
+                if trans_p.has_cut_contour:
+                    cut_ring = contour_to_shapely_linestring(trans_p.cut_contour, steps_per_curve=48)
+                    clipped_cut = cut_ring.intersection(tile_rect)
                     _draw_shapely_geom(
                         cad_shape,
-                        clipped_g,
+                        clipped_cut,
                         gx0,
                         gy0,
-                        color=(0.15, 0.65, 0.3),
+                        color=(0.08, 0.08, 0.08),
                         dashes=None,
-                        width=1.0,
+                        width=1.25,
                         margin_mm=margin,
                     )
-                    # Strzałka na końcu nitki prostej, jeśli punkt końcowy mieści się w kaflu
-                    if (
-                        gx0 <= trans_p.grainline_end.x <= gx1
-                        and gy0 <= trans_p.grainline_end.y <= gy1
-                    ):
-                        tip_pt = _to_fitz_point(trans_p.grainline_end.x, trans_p.grainline_end.y, gx0, gy0, margin_mm=margin)
-                        # Strzałka w osi Y
-                        cad_shape.draw_line(tip_pt, fitz.Point(tip_pt.x - 4.0, tip_pt.y + 8.0))
-                        cad_shape.draw_line(tip_pt, fitz.Point(tip_pt.x + 4.0, tip_pt.y + 8.0))
-                        cad_shape.finish(color=(0.15, 0.65, 0.3), width=1.0)
 
-        cad_shape.commit()
-
-        # 4. Adnotacje naddatków na szwy przy krawędziach
-        for pp in page_model.placed_pieces:
-            trans_p = pp.get_placed_piece()
-            if trans_p.has_cut_contour:
-                for seg in trans_p.outer_contour.segments:
-                    mx = (seg.start.x + seg.end.x) / 2.0
-                    my = (seg.start.y + seg.end.y) / 2.0
-                    if gx0 + 5.0 <= mx <= gx1 - 5.0 and gy0 + 5.0 <= my <= gy1 - 5.0:
-                        allowance = (
-                            seg.seam_allowance_mm
-                            if seg.seam_allowance_mm is not None
-                            else trans_p.seam_allowance_mm
-                        )
-                        role = seg.edge_role
-                        label_txt = None
-                        if role == "fold" or allowance == 0.0:
-                            label_txt = "0 mm (ZGIĘCIE/FOLD)"
-                        elif role == "elastic":
-                            label_txt = f"+{allowance:.0f} mm (ELASTIZAR)"
-                        elif role == "hem":
-                            label_txt = f"+{allowance:.0f} mm (HEM)"
-                        elif allowance > 0.0:
-                            label_txt = f"+{allowance:.0f} mm"
-
-                        if label_txt:
-                            fpt = _to_fitz_point(mx, my, gx0, gy0, margin_mm=margin)
-                            lbl_w = len(label_txt) * 4.2
-                            lbl_x = max(m_pt + 4.0, min(fpt.x - 20.0, PAGE_W_PT - m_pt - lbl_w - 4.0))
-                            page.insert_text(
-                                fitz.Point(lbl_x, fpt.y - 3.0),
-                                label_txt,
-                                fontsize=6.5,
-                                color=(0.2, 0.35, 0.5),
-                            )
-
-            # Etykieta nazwy elementu w środku
-            min_px, min_py, max_px, max_py = get_contour_bounds(trans_p.effective_boundary, steps_per_curve=32)
-            c_mid_x = (min_px + max_px) / 2.0
-            c_mid_y = (min_py + max_py) / 2.0
-            if gx0 <= c_mid_x <= gx1 and gy0 <= c_mid_y <= gy1:
-                label_pt = _to_fitz_point(c_mid_x, c_mid_y, gx0, gy0, margin_mm=margin)
-                name_w = len(trans_p.name) * 5.2
-                name_x = label_pt.x - name_w / 2.0
-                name_x = max(m_pt + 4.0, min(name_x, PAGE_W_PT - m_pt - name_w - 4.0))
-                page.insert_text(
-                    fitz.Point(name_x, label_pt.y - 5.0),
-                    f"{trans_p.name}",
-                    fontsize=9.0,
-                    color=(0.1, 0.1, 0.1),
-                )
-                if trans_p.fabric_note:
-                    fn_w = len(trans_p.fabric_note) * 4.0
-                    fn_x = label_pt.x - fn_w / 2.0
-                    fn_x = max(m_pt + 4.0, min(fn_x, PAGE_W_PT - m_pt - fn_w - 4.0))
-                    page.insert_text(
-                        fitz.Point(fn_x, label_pt.y + 6.0),
-                        f"{trans_p.fabric_note}",
-                        fontsize=7.0,
-                        color=(0.4, 0.4, 0.4),
+                # Kontur szycia (Sewing Line)
+                sew_ring = contour_to_shapely_linestring(trans_p.outer_contour, steps_per_curve=48)
+                clipped_sew = sew_ring.intersection(tile_rect)
+                if trans_p.has_cut_contour:
+                    # Przerywana niebieska linia szycia wewnątrz
+                    _draw_shapely_geom(
+                        cad_shape,
+                        clipped_sew,
+                        gx0,
+                        gy0,
+                        color=(0.17, 0.36, 0.52),
+                        dashes="[4 2] 0",
+                        width=0.9,
+                        margin_mm=margin,
+                    )
+                else:
+                    # Brak naddatków -> linia zewnętrzna to stała linia cięcia
+                    _draw_shapely_geom(
+                        cad_shape,
+                        clipped_sew,
+                        gx0,
+                        gy0,
+                        color=(0.08, 0.08, 0.08),
+                        dashes=None,
+                        width=1.25,
+                        margin_mm=margin,
                     )
 
-        # 5. Mini-mapa montażu w prawym górnym rogu
-        _draw_mini_map(
-            page,
-            current_row=page_model.row,
-            current_col=page_model.col,
-            total_rows=page_model.total_rows,
-            total_cols=page_model.total_cols,
-            page_index=page_model.page_index,
-            total_pages=nesting_result.total_pages,
-            margin_mm=margin,
-        )
+                # Linie wewnętrzne (Internal lines / darts)
+                for il in trans_p.internal_lines:
+                    il_ring = contour_to_shapely_linestring(il.contour, steps_per_curve=32)
+                    clipped_il = il_ring.intersection(tile_rect)
+                    _draw_shapely_geom(
+                        cad_shape,
+                        clipped_il,
+                        gx0,
+                        gy0,
+                        color=(0.85, 0.2, 0.2),
+                        dashes="[4 2] 0",
+                        width=0.85,
+                        margin_mm=margin,
+                    )
 
-        # 6. Kwadrat kontrolny skali 1:1 (50x50 mm) na Stronie 1
-        if page_model.page_index == 1:
-            _draw_calibration_square(page, margin_mm=margin)
+                # Nitka prosta (Grainline)
+                if trans_p.grainline_start and trans_p.grainline_end:
+                    g_line = LineString([trans_p.grainline_start.to_tuple(), trans_p.grainline_end.to_tuple()])
+                    clipped_g = g_line.intersection(tile_rect)
+                    if not clipped_g.is_empty:
+                        _draw_shapely_geom(
+                            cad_shape,
+                            clipped_g,
+                            gx0,
+                            gy0,
+                            color=(0.15, 0.65, 0.3),
+                            dashes=None,
+                            width=1.0,
+                            margin_mm=margin,
+                        )
+                        # Strzałka na końcu nitki prostej, jeśli punkt końcowy mieści się w kaflu
+                        if (
+                            gx0 <= trans_p.grainline_end.x <= gx1
+                            and gy0 <= trans_p.grainline_end.y <= gy1
+                        ):
+                            tip_pt = _to_fitz_point(trans_p.grainline_end.x, trans_p.grainline_end.y, gx0, gy0, margin_mm=margin)
+                            # Strzałka w osi Y
+                            cad_shape.draw_line(tip_pt, fitz.Point(tip_pt.x - 4.0, tip_pt.y + 8.0))
+                            cad_shape.draw_line(tip_pt, fitz.Point(tip_pt.x + 4.0, tip_pt.y + 8.0))
+                            cad_shape.finish(color=(0.15, 0.65, 0.3), width=1.0)
 
-        # 7. Nagłówek i stopka arkusza
-        mode_str = "Tryb Hybrydowy (Smart Pack & Tile)" if nesting_result.mode == "hybrid" else "Tryb Plakatowy (Grid)"
-        page.insert_text(
-            fitz.Point(m_pt, 7.0 * PT_PER_MM),
-            f"Image-to-Pattern CAD | {page_model.piece_name} | {mode_str} | Skala 1:1",
-            fontsize=8.0,
-            color=(0.2, 0.2, 0.2),
-        )
+                # Karbiki montażowe (Notches) na obrysie
+                for notch in trans_p.notches:
+                    n_pos = notch.position
+                    L = notch.length_mm
+                    if notch.direction:
+                        n_end = Point2D(x=n_pos.x + notch.direction.x * L, y=n_pos.y + notch.direction.y * L)
+                    else:
+                        n_end = Point2D(x=n_pos.x, y=n_pos.y + L)
+                    n_line = LineString([n_pos.to_tuple(), n_end.to_tuple()])
+                    clipped_n = n_line.intersection(tile_rect)
+                    if not clipped_n.is_empty:
+                        _draw_shapely_geom(
+                            cad_shape,
+                            clipped_n,
+                            gx0,
+                            gy0,
+                            color=(0.1, 0.45, 0.8),
+                            dashes=None,
+                            width=1.4,
+                            margin_mm=margin,
+                        )
 
-        page.insert_text(
-            fitz.Point(m_pt, p_h_pt - 4.0 * PT_PER_MM),
-            f"Arkusz A4 (210 x 297 mm) | Margines drukarki: {margin:.0f} mm | Zakladka klejenia: {overlap:.0f} mm | Strona {page_model.page_index} z {nesting_result.total_pages}",
-            fontsize=6.5,
-            color=(0.5, 0.5, 0.5),
-        )
+            cad_shape.commit()
 
-    doc.save(str(out_pdf))
-    doc.close()
+            # 4. Adnotacje naddatków na szwy przy krawędziach
+            for pp in page_model.placed_pieces:
+                trans_p = pp.get_placed_piece()
+                if trans_p.has_cut_contour:
+                    for seg in trans_p.outer_contour.segments:
+                        mx = (seg.start.x + seg.end.x) / 2.0
+                        my = (seg.start.y + seg.end.y) / 2.0
+                        if gx0 + 5.0 <= mx <= gx1 - 5.0 and gy0 + 5.0 <= my <= gy1 - 5.0:
+                            allowance = (
+                                seg.seam_allowance_mm
+                                if seg.seam_allowance_mm is not None
+                                else trans_p.seam_allowance_mm
+                            )
+                            role = seg.edge_role
+                            label_txt = None
+                            if role == "fold" or allowance == 0.0:
+                                label_txt = "0 mm (ZGIĘCIE/FOLD)"
+                            elif role == "elastic":
+                                label_txt = f"+{allowance:.0f} mm (ELASTIZAR)"
+                            elif role == "hem":
+                                label_txt = f"+{allowance:.0f} mm (HEM)"
+                            elif allowance > 0.0:
+                                label_txt = f"+{allowance:.0f} mm"
+
+                            if label_txt:
+                                fpt = _to_fitz_point(mx, my, gx0, gy0, margin_mm=margin)
+                                lbl_w = len(label_txt) * 4.2
+                                lbl_x = max(m_pt + 4.0, min(fpt.x - 20.0, PAGE_W_PT - m_pt - lbl_w - 4.0))
+                                page.insert_text(
+                                    fitz.Point(lbl_x, fpt.y - 3.0),
+                                    label_txt,
+                                    fontsize=6.5,
+                                    color=(0.2, 0.35, 0.5),
+                                )
+
+                # Etykieta nazwy elementu w środku
+                min_px, min_py, max_px, max_py = get_contour_bounds(trans_p.effective_boundary, steps_per_curve=32)
+                c_mid_x = (min_px + max_px) / 2.0
+                c_mid_y = (min_py + max_py) / 2.0
+                if gx0 <= c_mid_x <= gx1 and gy0 <= c_mid_y <= gy1:
+                    label_pt = _to_fitz_point(c_mid_x, c_mid_y, gx0, gy0, margin_mm=margin)
+                    name_w = len(trans_p.name) * 5.2
+                    name_x = label_pt.x - name_w / 2.0
+                    name_x = max(m_pt + 4.0, min(name_x, PAGE_W_PT - m_pt - name_w - 4.0))
+                    page.insert_text(
+                        fitz.Point(name_x, label_pt.y - 5.0),
+                        f"{trans_p.name}",
+                        fontsize=9.0,
+                        color=(0.1, 0.1, 0.1),
+                    )
+                    if trans_p.fabric_note:
+                        fn_w = len(trans_p.fabric_note) * 4.0
+                        fn_x = label_pt.x - fn_w / 2.0
+                        fn_x = max(m_pt + 4.0, min(fn_x, PAGE_W_PT - m_pt - fn_w - 4.0))
+                        page.insert_text(
+                            fitz.Point(fn_x, label_pt.y + 6.0),
+                            f"{trans_p.fabric_note}",
+                            fontsize=7.0,
+                            color=(0.4, 0.4, 0.4),
+                        )
+
+            # 5. Mini-mapa montażu w prawym górnym rogu
+            _draw_mini_map(
+                page,
+                current_row=page_model.row,
+                current_col=page_model.col,
+                total_rows=page_model.total_rows,
+                total_cols=page_model.total_cols,
+                page_index=page_model.page_index,
+                total_pages=nesting_result.total_pages,
+                margin_mm=margin,
+            )
+
+            # 6. Kwadrat kontrolny skali 1:1 (50x50 mm) na Stronie 1
+            if page_model.page_index == 1:
+                _draw_calibration_square(page, margin_mm=margin)
+
+            # 7. Nagłówek i stopka arkusza
+            mode_str = "Tryb Hybrydowy (Smart Pack & Tile)" if nesting_result.mode == "hybrid" else "Tryb Plakatowy (Grid)"
+            page.insert_text(
+                fitz.Point(m_pt, 7.0 * PT_PER_MM),
+                f"Image-to-Pattern CAD | {page_model.piece_name} | {mode_str} | Skala 1:1",
+                fontsize=8.0,
+                color=(0.2, 0.2, 0.2),
+            )
+
+            page.insert_text(
+                fitz.Point(m_pt, p_h_pt - 4.0 * PT_PER_MM),
+                f"Arkusz A4 (210 x 297 mm) | Margines drukarki: {margin:.0f} mm | Zakladka klejenia: {overlap:.0f} mm | Strona {page_model.page_index} z {nesting_result.total_pages}",
+                fontsize=6.5,
+                color=(0.5, 0.5, 0.5),
+            )
+
+        doc.save(str(out_pdf))
 
     # 8. Renderowanie podglądów PNG (150 DPI)
     if render_png_previews:
-        doc_render = fitz.open(str(out_pdf))
-        for idx, page in enumerate(doc_render):
-            pix = page.get_pixmap(dpi=150)
-            prefix = "hybrid" if nesting_result.mode == "hybrid" else "poster"
-            png_path = png_dir / f"{prefix}_page_{idx+1:02d}.png"
-            pix.save(str(png_path))
-        doc_render.close()
+        with fitz.open(str(out_pdf)) as doc_render:
+            for idx, page in enumerate(doc_render):
+                pix = page.get_pixmap(dpi=150)
+                prefix = "hybrid" if nesting_result.mode == "hybrid" else "poster"
+                png_path = png_dir / f"{prefix}_page_{idx+1:02d}.png"
+                pix.save(str(png_path))
 
     return out_pdf

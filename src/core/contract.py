@@ -42,7 +42,32 @@ class Point2D(BaseModel):
         return Point2D(x=self.x + dx, y=self.y + dy)
 
 
-EdgeRole = Literal["seam", "fold", "hem", "elastic", "raw"]
+EdgeRole = Literal["seam", "fold", "cut", "hem", "elastic", "raw"]
+
+# Stałe typów linii krawieckich i oznaczeń
+LINE_TYPE_CUT: str = "cut"
+LINE_TYPE_FOLD: str = "fold"
+LINE_TYPE_SEAM: str = "seam"
+LINE_TYPE_SLIT: str = "slit"
+LINE_TYPE_INTERNAL_CUT: str = "internal_cut"
+LINE_TYPE_DART: str = "dart"
+
+
+class Notch(BaseModel):
+    """
+    Karbik / nacięcie montażowe na obrysie elementu wykroju (AAMA Layer 2).
+    Wskazuje punkt i opcjonalny wektor kierunku nacięcia na materiale w celu spasowania elementów.
+    """
+
+    id: str
+    position: Point2D
+    direction: Optional[Point2D] = None
+    length_mm: float = Field(default=5.0, ge=1.0, description="Długość nacięcia w mm")
+    notch_type: Literal["slit", "v_notch", "t_notch"] = "slit"
+    label: str = ""
+
+    def translated(self, dx: float, dy: float) -> Notch:
+        return self.model_copy(update={"position": self.position.translated(dx, dy)})
 
 
 class PathSegment(BaseModel):
@@ -132,12 +157,17 @@ class Contour(BaseModel):
         return cls(segments=segs, is_closed=is_closed)
 
 
+InternalLineType = Literal[
+    "internal", "dart", "slit", "internal_cut", "fold", "cut_guide", "elastic"
+]
+
+
 class InternalLine(BaseModel):
-    """Linia wewnętrzna na elemencie wykroju (np. zaszywka, linia cięcia, linia zgięcia)."""
+    """Linia wewnętrzna na elemencie wykroju (np. zaszywka, pęknięcie/rozcięcie, linia zgięcia)."""
 
     id: str
     label: str = ""
-    line_type: Literal["internal", "dart", "cut_guide", "elastic"] = "internal"
+    line_type: InternalLineType = "internal"
     contour: Contour
 
 
@@ -155,6 +185,10 @@ class PatternPiece(BaseModel):
         description="Zewnętrzny obrys cięcia z uwzględnieniem naddatków na szwy (Cut Line).",
     )
     internal_lines: list[InternalLine] = Field(default_factory=list)
+    notches: list[Notch] = Field(
+        default_factory=list,
+        description="Karbiki montażowe na obrysie (AAMA Layer 2).",
+    )
     grainline_start: Optional[Point2D] = None
     grainline_end: Optional[Point2D] = None
     seam_allowance_mm: float = Field(default=0.0, ge=0.0)
@@ -176,6 +210,18 @@ class PatternPiece(BaseModel):
     @property
     def target_height_mm(self) -> float:
         return self.target_height_cm * MM_PER_CM
+
+    @property
+    def fold_segment_index(self) -> Optional[int]:
+        """Zwraca indeks segmentu outer_contour z rolą 'fold', jeśli istnieje."""
+        for idx, seg in enumerate(self.outer_contour.segments):
+            if seg.edge_role == "fold":
+                return idx
+        return None
+
+    @property
+    def has_fold(self) -> bool:
+        return self.fold_segment_index is not None
 
 
 class PatternProject(BaseModel):

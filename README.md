@@ -419,6 +419,19 @@ python run_server.py
 ```
 Aplikacja automatycznie otworzy przeglądarkę pod adresem `http://127.0.0.1:8000`.
 
+### 🖍️ Strefy wyszukiwania wykroju (ROI): „szukaj tutaj" / „ignoruj"
+
+Po wskazaniu pliku w oknie **Dygitalizator Wykrojów** pojawia się podgląd grafiki, na którym można obrysować:
+
+* 🟢 **Szukaj tutaj** — program szuka wykrojów wyłącznie w zaznaczonych obszarach,
+* 🔴 **Ignoruj** — obszar jest zawsze wycinany (zdjęcie na manekinie, schemat montażu, tabela rozmiarów...).
+
+Narzędzia: **Lasso wielokątne** (klikasz punkty, domykasz klikając w pierwszy punkt / dwuklik / `Enter`; `Backspace` usuwa ostatni punkt, `Esc` anuluje), **Lasso odręczne** (przytrzymanie przycisku myszy) i **Ramka**. Każdą narysowaną strefę można później przełączyć (szukaj ↔ ignoruj) lub usunąć na liście pod podglądem. Bez stref „szukaj tutaj" przeszukiwany jest cały obraz; strefy „ignoruj" mają pierwszeństwo.
+
+Technicznie strefy to wielokąty we współrzędnych znormalizowanych 0–1 (`src/digitizer/roi.py`), wysyłane do `POST /api/digitize` w polu formularza `zones` (JSON). Skala (kwadrat kalibracyjny) jest wykrywana na pełnym obrazie, więc może leżeć poza strefą wyszukiwania. Selektor **Styl grafiki** pozwala wymusić tryb kolorowych wypełnień lub konturów line-art. Wzorcowe nazwy i wymiary czapki *Gorro Trapper* są stosowane tylko do tego arkusza (po nazwie pliku lub dopasowaniu ≥5 z 6 elementów), a nie do dowolnej grafiki.
+
+> **Ograniczenie trybu line-art:** elementy z niedomkniętym obrysem (np. kreskowana linia zgięcia) lub stykające się z liniami wymiarowymi mogą nie zostać wykryte automatycznie.
+
 ---
 
 | Biblioteka / Narzędzie | Wersja | Rola w Etapie 1 | Rola w Etapie 2 | Dlaczego właśnie to narzędzie? |

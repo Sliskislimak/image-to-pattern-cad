@@ -13,6 +13,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import shutil
@@ -20,7 +21,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -46,6 +47,7 @@ from src.core.seam_allowance import (
     apply_seam_allowance_to_project,
 )
 from src.digitizer.pipeline import DigitizerPipeline
+from src.digitizer.roi import parse_zones
 from src.exporters.a4_tiler_pdf import export_a4_pdf
 from src.exporters.dxf_exporter import export_clo3d_dxf
 from src.exporters.pdf_exporter import (
@@ -379,18 +381,33 @@ def create_app() -> FastAPI:
     @app.post("/api/digitize")
     async def digitize_image_endpoint(
         file: UploadFile = File(...),
+        zones: Optional[str] = Form(
+            None,
+            description="JSON list of ROI zones: [{\"mode\": \"include\"|\"exclude\", \"points\": [[x, y], ...]}], "
+            "coordinates normalized to 0..1 relative to the image size.",
+        ),
         seam_mode: Literal["net_only", "included", "dual_detected"] = Query("net_only"),
         seam_allowance_mm: float = Query(10.0),
         auto_unfold: bool = Query(False),
         max_bezier_error_mm: float = Query(0.5),
+        segmentation_mode: Literal["auto", "color", "line_art"] = Query("auto"),
+        reference_specs: Literal["auto", "gorro_trapper", "none"] = Query("auto"),
     ) -> Dict[str, Any]:
         """
         Receives an uploaded pattern image (PNG/JPG), processes it through DigitizerPipeline,
         and replaces the active project with the digitized result.
+
+        Optional ``zones`` restrict the search for pattern pieces to user-drawn 'include' areas
+        and skip 'exclude' areas (mannequin photo, assembly diagram, tables...).
         """
         suffix = Path(file.filename or "uploaded.png").suffix.lower()
         if suffix not in (".png", ".jpg", ".jpeg", ".bmp", ".webp"):
             raise HTTPException(status_code=400, detail="Obsługiwane formaty graficzne: PNG, JPG, JPEG, BMP, WEBP.")
+
+        try:
+            roi_zones = parse_zones(json.loads(zones)) if zones else []
+        except (ValueError, TypeError) as err:  # json.JSONDecodeError and pydantic errors are ValueErrors
+            raise HTTPException(status_code=400, detail=f"Nieprawidłowe strefy zaznaczenia: {err}")
 
         output_dir = Path("output/ui_digitizer").resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -411,9 +428,11 @@ def create_app() -> FastAPI:
                 export_clo3d=True,
                 export_a4=True,
                 max_bezier_error_mm=max_bezier_error_mm,
+                segmentation_mode=segmentation_mode,
+                reference_specs=reference_specs,
             )
 
-            digitized_project = pipeline.process_image(temp_img_path)
+            digitized_project = pipeline.process_image(temp_img_path, zones=roi_zones)
             session.project = digitized_project
 
             contact_path = output_dir / "diagnostic_contact_sheet.png"
@@ -426,7 +445,12 @@ def create_app() -> FastAPI:
                 "pieces_count": len(digitized_project.pieces),
                 "project": digitized_project.model_dump(),
                 "has_diagnostic_sheet": contact_path.is_file(),
+                "zones_applied": len(roi_zones),
             }
+        except ValueError as err:
+            # Includes "no pieces segmented" and "ROI zones leave no area" – user-correctable input errors.
+            logger.warning("Dygitalizacja odrzucona: %s", err)
+            raise HTTPException(status_code=422, detail=f"Nie udało się wykryć wykroju: {err}")
         except Exception as err:
             logger.exception("Błąd dygitalizacji obrazu")
             raise HTTPException(status_code=500, detail=f"Błąd podczas dygitalizacji wykroju: {err}")

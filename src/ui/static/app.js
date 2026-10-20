@@ -96,6 +96,14 @@
   const digitizerFileInput = document.getElementById('digitizer-file-input');
   const selectedFileName = document.getElementById('selected-file-name');
 
+  // ROI Zone Editor Elements
+  const roiEditor = document.getElementById('roi-editor');
+  const roiStage = document.getElementById('roi-stage');
+  const roiCanvas = document.getElementById('roi-canvas');
+  const roiCtx = roiCanvas.getContext('2d');
+  const roiZoneList = document.getElementById('roi-zone-list');
+  const roiSummary = document.getElementById('roi-summary');
+
   // =========================================================================
   // Coordinate Space Transforms (CAD mm -> Canvas px)
   // CAD coordinates: Origin (0,0) at bottom-left, +X right, +Y UP.
@@ -1492,6 +1500,10 @@
 
   btnOpenDigitizer.addEventListener('click', () => {
     digitizerModal.classList.remove('hidden');
+    if (roi.image) {
+      layoutRoiCanvas();
+      drawRoi();
+    }
   });
 
   btnCloseDigitizerModal.addEventListener('click', () => digitizerModal.classList.add('hidden'));
@@ -1501,8 +1513,7 @@
 
   digitizerFileInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) {
-      selectedFileName.textContent = e.target.files[0].name;
-      selectedFileName.classList.remove('hidden');
+      handleDigitizerFile(e.target.files[0]);
     }
   });
 
@@ -1523,8 +1534,353 @@
   dropArea.addEventListener('drop', (e) => {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       digitizerFileInput.files = e.dataTransfer.files;
-      selectedFileName.textContent = e.dataTransfer.files[0].name;
-      selectedFileName.classList.remove('hidden');
+      handleDigitizerFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  function handleDigitizerFile(file) {
+    selectedFileName.textContent = file.name;
+    selectedFileName.classList.remove('hidden');
+    loadRoiImage(file);
+  }
+
+  // =========================================================================
+  // ROI Zone Editor (include / exclude lasso zones drawn on the uploaded image)
+  // Zones are stored as polygons in normalized image coordinates (0..1).
+  // =========================================================================
+
+  const ROI_COLORS = {
+    include: { fill: 'rgba(52, 211, 153, 0.28)', stroke: '#34d399' },
+    exclude: { fill: 'rgba(248, 113, 113, 0.32)', stroke: '#f87171' },
+  };
+  const ROI_CLOSE_RADIUS_PX = 10;
+  const ROI_FREEHAND_MIN_STEP_PX = 3;
+  const ROI_ACTIVE_MODE_CLASSES = {
+    include: ['bg-emerald-600/30', 'text-emerald-300'],
+    exclude: ['bg-red-600/30', 'text-red-300'],
+  };
+  const ROI_ACTIVE_TOOL_CLASSES = ['bg-indigo-600/40', 'text-indigo-200'];
+  const ROI_INACTIVE_CLASSES = ['bg-slate-800', 'text-slate-400'];
+
+  const roi = {
+    zones: [], // [{ mode: 'include' | 'exclude', points: [[nx, ny], ...] }]
+    tool: 'polygon',
+    mode: 'include',
+    current: null, // in-progress polygon (normalized points)
+    hover: null,
+    freehandActive: false,
+    rectStart: null,
+    image: null,
+    objectUrl: null,
+    cssW: 0,
+    cssH: 0,
+  };
+
+  function loadRoiImage(file) {
+    if (roi.objectUrl) URL.revokeObjectURL(roi.objectUrl);
+    roi.objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      roi.image = img;
+      roi.zones = [];
+      roi.current = null;
+      roi.hover = null;
+      roiEditor.classList.remove('hidden');
+      layoutRoiCanvas();
+      renderRoiZoneList();
+      drawRoi();
+    };
+    img.onerror = () => {
+      roi.image = null;
+      roiEditor.classList.add('hidden');
+    };
+    img.src = roi.objectUrl;
+  }
+
+  function layoutRoiCanvas() {
+    if (!roi.image) return;
+    const maxW = Math.max(240, roiStage.clientWidth || 640);
+    const maxH = Math.max(200, Math.round(window.innerHeight * 0.5));
+    const scale = Math.min(maxW / roi.image.naturalWidth, maxH / roi.image.naturalHeight, 2);
+    roi.cssW = Math.max(1, Math.round(roi.image.naturalWidth * scale));
+    roi.cssH = Math.max(1, Math.round(roi.image.naturalHeight * scale));
+    const dpr = window.devicePixelRatio || 1;
+    roiCanvas.width = Math.round(roi.cssW * dpr);
+    roiCanvas.height = Math.round(roi.cssH * dpr);
+    roiCanvas.style.width = `${roi.cssW}px`;
+    roiCanvas.style.height = `${roi.cssH}px`;
+    roiCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function roiPointFromEvent(e) {
+    const rect = roiCanvas.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width;
+    const ny = (e.clientY - rect.top) / rect.height;
+    return [Math.min(1, Math.max(0, nx)), Math.min(1, Math.max(0, ny))];
+  }
+
+  function roiToPx(pt) {
+    return [pt[0] * roi.cssW, pt[1] * roi.cssH];
+  }
+
+  function roiDistPx(a, b) {
+    const pa = roiToPx(a);
+    const pb = roiToPx(b);
+    return Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+  }
+
+  function tracePolygon(points, close) {
+    roiCtx.beginPath();
+    points.forEach((p, i) => {
+      const [x, y] = roiToPx(p);
+      if (i === 0) roiCtx.moveTo(x, y);
+      else roiCtx.lineTo(x, y);
+    });
+    if (close) roiCtx.closePath();
+  }
+
+  function drawRoi() {
+    if (!roi.image) return;
+    roiCtx.clearRect(0, 0, roi.cssW, roi.cssH);
+    roiCtx.drawImage(roi.image, 0, 0, roi.cssW, roi.cssH);
+
+    roi.zones.forEach((zone) => {
+      const c = ROI_COLORS[zone.mode];
+      tracePolygon(zone.points, true);
+      roiCtx.fillStyle = c.fill;
+      roiCtx.fill();
+      roiCtx.lineWidth = 2;
+      roiCtx.strokeStyle = c.stroke;
+      roiCtx.stroke();
+    });
+
+    if (roi.current && roi.current.length > 0) {
+      const c = ROI_COLORS[roi.mode];
+      const pts = roi.current;
+      const live = roi.tool === 'polygon' && roi.hover ? pts.concat([roi.hover]) : pts;
+
+      if (roi.tool === 'rect' || roi.tool === 'freehand') {
+        tracePolygon(pts, true);
+        roiCtx.fillStyle = c.fill;
+        roiCtx.fill();
+      }
+      tracePolygon(live, false);
+      roiCtx.lineWidth = 2;
+      roiCtx.strokeStyle = c.stroke;
+      roiCtx.setLineDash(roi.tool === 'polygon' ? [6, 4] : []);
+      roiCtx.stroke();
+      roiCtx.setLineDash([]);
+
+      if (roi.tool === 'polygon') {
+        pts.forEach((p, i) => {
+          const [x, y] = roiToPx(p);
+          const nearStart = i === 0 && pts.length >= 3 && roi.hover && roiDistPx(roi.hover, p) <= ROI_CLOSE_RADIUS_PX;
+          roiCtx.beginPath();
+          roiCtx.arc(x, y, nearStart ? 7 : 4, 0, Math.PI * 2);
+          roiCtx.fillStyle = nearStart ? '#ffffff' : c.stroke;
+          roiCtx.fill();
+          roiCtx.lineWidth = 1.5;
+          roiCtx.strokeStyle = '#0f172a';
+          roiCtx.stroke();
+        });
+      }
+    }
+  }
+
+  function finishRoiZone() {
+    if (roi.current && roi.current.length >= 3) {
+      roi.zones.push({ mode: roi.mode, points: roi.current.map((p) => [p[0], p[1]]) });
+      renderRoiZoneList();
+    }
+    roi.current = null;
+    roi.freehandActive = false;
+    roi.rectStart = null;
+    drawRoi();
+  }
+
+  function cancelRoiCurrent() {
+    roi.current = null;
+    roi.freehandActive = false;
+    roi.rectStart = null;
+    drawRoi();
+  }
+
+  function rectCorners(a, b) {
+    return [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]];
+  }
+
+  roiCanvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !roi.image) return;
+    e.preventDefault();
+    const p = roiPointFromEvent(e);
+
+    if (roi.tool === 'polygon') {
+      if (!roi.current) {
+        roi.current = [p];
+      } else if (roi.current.length >= 3 && roiDistPx(p, roi.current[0]) <= ROI_CLOSE_RADIUS_PX) {
+        finishRoiZone();
+        return;
+      } else if (roiDistPx(p, roi.current[roi.current.length - 1]) > 2) {
+        roi.current.push(p);
+      }
+    } else if (roi.tool === 'freehand') {
+      roi.current = [p];
+      roi.freehandActive = true;
+      roiCanvas.setPointerCapture(e.pointerId);
+    } else if (roi.tool === 'rect') {
+      roi.rectStart = p;
+      roi.current = rectCorners(p, p);
+      roiCanvas.setPointerCapture(e.pointerId);
+    }
+    drawRoi();
+  });
+
+  roiCanvas.addEventListener('pointermove', (e) => {
+    if (!roi.image) return;
+    const p = roiPointFromEvent(e);
+    roi.hover = p;
+    if (roi.tool === 'freehand' && roi.freehandActive && roi.current) {
+      if (roiDistPx(p, roi.current[roi.current.length - 1]) >= ROI_FREEHAND_MIN_STEP_PX) {
+        roi.current.push(p);
+      }
+    } else if (roi.tool === 'rect' && roi.rectStart) {
+      roi.current = rectCorners(roi.rectStart, p);
+    }
+    drawRoi();
+  });
+
+  roiCanvas.addEventListener('pointerleave', () => {
+    roi.hover = null;
+    drawRoi();
+  });
+
+  roiCanvas.addEventListener('pointerup', () => {
+    if (roi.tool === 'freehand' && roi.freehandActive) {
+      roi.freehandActive = false;
+      if (roi.current && roi.current.length >= 3) finishRoiZone();
+      else cancelRoiCurrent();
+    } else if (roi.tool === 'rect' && roi.rectStart) {
+      const c = roi.current;
+      const bigEnough = c && roiDistPx(c[0], c[1]) > 4 && roiDistPx(c[1], c[2]) > 4;
+      if (bigEnough) finishRoiZone();
+      else cancelRoiCurrent();
+    }
+  });
+
+  roiCanvas.addEventListener('dblclick', (e) => {
+    if (roi.tool === 'polygon' && roi.current && roi.current.length >= 3) {
+      e.preventDefault();
+      finishRoiZone();
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (digitizerModal.classList.contains('hidden') || !roi.current) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finishRoiZone();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRoiCurrent();
+    } else if (e.key === 'Backspace' && roi.tool === 'polygon') {
+      e.preventDefault();
+      roi.current.pop();
+      if (roi.current.length === 0) roi.current = null;
+      drawRoi();
+    }
+  });
+
+  function setRoiMode(mode) {
+    roi.mode = mode;
+    document.querySelectorAll('.roi-mode-btn').forEach((btn) => {
+      const active = btn.dataset.roiMode === mode;
+      Object.values(ROI_ACTIVE_MODE_CLASSES).flat().forEach((c) => btn.classList.remove(c));
+      ROI_INACTIVE_CLASSES.forEach((c) => btn.classList.remove(c));
+      (active ? ROI_ACTIVE_MODE_CLASSES[btn.dataset.roiMode] : ROI_INACTIVE_CLASSES).forEach((c) => btn.classList.add(c));
+    });
+    drawRoi();
+  }
+
+  function setRoiTool(tool) {
+    cancelRoiCurrent();
+    roi.tool = tool;
+    document.querySelectorAll('.roi-tool-btn').forEach((btn) => {
+      const active = btn.dataset.roiTool === tool;
+      ROI_ACTIVE_TOOL_CLASSES.concat(ROI_INACTIVE_CLASSES).forEach((c) => btn.classList.remove(c));
+      (active ? ROI_ACTIVE_TOOL_CLASSES : ROI_INACTIVE_CLASSES).forEach((c) => btn.classList.add(c));
+    });
+  }
+
+  document.querySelectorAll('.roi-mode-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setRoiMode(btn.dataset.roiMode));
+  });
+  document.querySelectorAll('.roi-tool-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setRoiTool(btn.dataset.roiTool));
+  });
+
+  document.getElementById('btn-roi-undo').addEventListener('click', () => {
+    if (roi.current) {
+      cancelRoiCurrent();
+    } else {
+      roi.zones.pop();
+      renderRoiZoneList();
+      drawRoi();
+    }
+  });
+
+  document.getElementById('btn-roi-clear').addEventListener('click', () => {
+    roi.zones = [];
+    roi.current = null;
+    renderRoiZoneList();
+    drawRoi();
+  });
+
+  function renderRoiZoneList() {
+    const inc = roi.zones.filter((z) => z.mode === 'include').length;
+    const exc = roi.zones.length - inc;
+    roiSummary.textContent = roi.zones.length ? `${inc} × szukaj · ${exc} × ignoruj` : 'cały obraz';
+    roiZoneList.innerHTML = '';
+    roi.zones.forEach((zone, idx) => {
+      const li = document.createElement('li');
+      li.className = 'flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded px-2 py-1';
+
+      const label = document.createElement('span');
+      label.className = zone.mode === 'include' ? 'text-emerald-300' : 'text-red-300';
+      label.textContent = `${zone.mode === 'include' ? '🟢 Szukaj tutaj' : '🔴 Ignoruj'} — strefa ${idx + 1} (${zone.points.length} pkt)`;
+
+      const actions = document.createElement('span');
+      actions.className = 'flex items-center space-x-2';
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'text-slate-400 hover:text-white';
+      toggle.textContent = 'Przełącz';
+      toggle.addEventListener('click', () => {
+        zone.mode = zone.mode === 'include' ? 'exclude' : 'include';
+        renderRoiZoneList();
+        drawRoi();
+      });
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'text-slate-400 hover:text-red-400';
+      remove.textContent = 'Usuń';
+      remove.addEventListener('click', () => {
+        roi.zones.splice(idx, 1);
+        renderRoiZoneList();
+        drawRoi();
+      });
+
+      actions.append(toggle, remove);
+      li.append(label, actions);
+      roiZoneList.appendChild(li);
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    if (roi.image && !digitizerModal.classList.contains('hidden')) {
+      layoutRoiCanvas();
+      drawRoi();
     }
   });
 
@@ -1535,26 +1891,34 @@
       alert('Wybierz plik graficzny wykroju (PNG lub JPG)!');
       return;
     }
+    if (roi.current) finishRoiZone();
 
     const seamMode = document.getElementById('digitizer-seam-mode').value;
     const seamMm = parseFloat(document.getElementById('digitizer-seam-mm').value);
     const autoUnfold = document.getElementById('digitizer-auto-unfold').checked;
     const bezierError = parseFloat(document.getElementById('digitizer-bezier-error').value);
+    const segMode = document.getElementById('digitizer-segmentation-mode').value;
 
     const formData = new FormData();
     formData.append('file', file);
+    if (roi.zones.length > 0) {
+      formData.append('zones', JSON.stringify(roi.zones.map((z) => ({ mode: z.mode, points: z.points }))));
+    }
 
     digitizerModal.classList.add('hidden');
     showLoading('Potok percepcji: odzyskiwanie skali, segmentacja i wektoryzacja Béziera...');
 
     try {
-      const url = `/api/digitize?seam_mode=${seamMode}&seam_allowance_mm=${seamMm}&auto_unfold=${autoUnfold}&max_bezier_error_mm=${bezierError}`;
+      const url = `/api/digitize?seam_mode=${seamMode}&seam_allowance_mm=${seamMm}&auto_unfold=${autoUnfold}&max_bezier_error_mm=${bezierError}&segmentation_mode=${segMode}`;
       const res = await apiCall(url, 'POST', formData);
       state.hiddenPieceIds.clear();
       state.pieceOffsets = {};
       setProject(res.project, true);
       alert(`Sukces! Zdygitalizowano ${res.pieces_count} elementów wykroju.`);
     } catch (err) {
+      digitizerModal.classList.remove('hidden');
+      layoutRoiCanvas();
+      drawRoi();
       alert(`Błąd dygitalizacji: ${err.message}`);
     } finally {
       hideLoading();

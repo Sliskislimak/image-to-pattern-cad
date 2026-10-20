@@ -53,6 +53,13 @@ from src.core.geometry import (
     get_contour_dimensions_mm,
     unfold_piece_on_fold,
 )
+from src.digitizer.roi import (
+    ROIZone,
+    apply_roi_to_image,
+    draw_zones_overlay,
+    parse_zones,
+    rasterize_zones,
+)
 from src.digitizer.scale_recovery import (
     ScaleResult,
     auto_detect_scale,
@@ -147,6 +154,41 @@ GORRO_TRAPPER_SPECS = [
         "fold_hint": None,
     },
 ]
+
+
+SegmentationStyle = Literal["auto", "color", "line_art"]
+ReferenceSpecsMode = Literal["auto", "gorro_trapper", "none"]
+
+_AUTO_SPEC_TOLERANCE = 0.12
+_AUTO_SPEC_MIN_DISTINCT = 5
+
+
+def should_use_reference_specs(
+    mode: ReferenceSpecsMode,
+    image_path: Union[str, Path],
+    bboxes_px: Sequence[Tuple[int, int, int, int]] = (),
+) -> bool:
+    """
+    Decides whether the Gorro Trapper reference specs (names, cm dimensions, quantities) may be
+    applied to the detected pieces, so that unrelated patterns keep their own measured geometry.
+
+    In 'auto' mode the specs are used when the file name says 'gorro'/'trapper', or when the detected
+    pieces genuinely look like that sheet (at least 5 of its 6 reference pieces matched by a tight
+    aspect-ratio tolerance), which also covers renamed copies of the sample image.
+    """
+    if mode == "gorro_trapper":
+        return True
+    if mode == "none":
+        return False
+    stem = Path(image_path).stem.lower()
+    if "gorro" in stem or "trapper" in stem:
+        return True
+    matched = {
+        s["id"]
+        for bbox in bboxes_px
+        if (s := match_piece_spec(bbox, GORRO_TRAPPER_SPECS, tolerance=_AUTO_SPEC_TOLERANCE)) is not None
+    }
+    return len(matched) >= _AUTO_SPEC_MIN_DISTINCT
 
 
 def match_piece_spec(
@@ -442,7 +484,11 @@ class DigitizerPipeline:
         export_clo3d: bool = True,
         export_a4: bool = True,
         max_bezier_error_mm: float = 0.5,
+        segmentation_mode: SegmentationStyle = "auto",
+        reference_specs: ReferenceSpecsMode = "auto",
     ):
+        self.segmentation_mode = segmentation_mode
+        self.reference_specs = reference_specs
         self.scale_method = scale_method
         self.seam_mode = seam_mode
         self.seam_allowance_mm = max(0.0, float(seam_allowance_mm))
@@ -458,21 +504,47 @@ class DigitizerPipeline:
         image_path: Union[str, Path],
         project_name: Optional[str] = None,
         declared_dimensions: Optional[Dict[str, Tuple[float, float]]] = None,
+        zones: Optional[Sequence[Union[ROIZone, Dict[str, Any]]]] = None,
     ) -> PatternProject:
         """
         Executes the full perception, scale, vectorization, and tailoring semantics pipeline.
+
+        Args:
+            zones: Optional user-drawn ROI zones (normalized polygons). 'include' zones restrict the
+                search area for pattern pieces, 'exclude' zones are ignored (see src/digitizer/roi.py).
         """
         path = Path(image_path)
         img = load_image(path)
         proj_name = project_name or path.stem
 
-        # 1. Scale Recovery
+        # 1. Scale Recovery (runs on the full image so a calibration square outside the ROI still works)
         scale = auto_detect_scale(img, image_path=path)
 
-        # 2. Raster Segmentation
-        segmented_pieces = segment_pattern_pieces_detailed(img, min_area_px=1000.0)
+        # 2. ROI zones + Raster Segmentation
+        zone_list = parse_zones(zones)
+        seg_img = img
+        diag_img = img
+        if zone_list:
+            allowed = rasterize_zones(zone_list, img.shape)
+            seg_img = apply_roi_to_image(img, allowed)
+            diag_img = draw_zones_overlay(img, zone_list)
+
+        if self.segmentation_mode == "color":
+            segmented_pieces = segment_pattern_pieces_detailed(
+                seg_img, min_area_px=1000.0, hsv_tan_filter=True, auto_fallback=False
+            )
+        elif self.segmentation_mode == "line_art":
+            segmented_pieces = segment_pattern_pieces_detailed(
+                seg_img, min_area_px=1000.0, hsv_tan_filter=False, auto_fallback=False
+            )
+        else:
+            segmented_pieces = segment_pattern_pieces_detailed(seg_img, min_area_px=1000.0)
         if not segmented_pieces:
             raise ValueError(f"No pattern pieces could be segmented from {path}.")
+
+        use_specs = should_use_reference_specs(
+            self.reference_specs, path, [sp.bbox_px for sp in segmented_pieces]
+        )
 
         # 3. Vectorization into CAD contours
         vectorization_results: List[VectorizationResult] = []
@@ -490,7 +562,7 @@ class DigitizerPipeline:
             vectorization_results.append(v_res)
 
             # Match against known specs if applicable
-            spec = match_piece_spec(sp.bbox_px, GORRO_TRAPPER_SPECS)
+            spec = match_piece_spec(sp.bbox_px, GORRO_TRAPPER_SPECS) if use_specs else None
             if spec:
                 p_id = spec["id"]
                 p_name = spec["name"]
@@ -525,7 +597,7 @@ class DigitizerPipeline:
 
             # Internal features (slits, darts, division lines)
             piece = extract_internal_features(
-                image=img,
+                image=seg_img,
                 piece=piece,
                 scale=scale,
                 transform=v_res.transform,
@@ -563,7 +635,7 @@ class DigitizerPipeline:
         # 6. Generate Diagnostic Overlays
         self.output_dir.mkdir(parents=True, exist_ok=True)
         generate_diagnostic_overlays(
-            image=img,
+            image=diag_img,
             segmented_pieces=segmented_pieces,
             vectorization_results=vectorization_results,
             pieces=raw_pieces,

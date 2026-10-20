@@ -55,6 +55,11 @@ from src.digitizer.scale_recovery import ScaleResult
 ImageInput = Union[np.ndarray, str, Path]
 SegmentationMode = Literal["color", "line_art"]
 
+# Line-art mode: faint strokes are pixels at least this many gray levels darker than the paper...
+_LINE_ART_PAPER_MARGIN = 35.0
+# ...and thinner than this many pixels (wider pale regions are fills, not outlines).
+_LINE_ART_THIN_MAX_PX = 7
+
 __all__ = [
     "SegmentedPiece",
     "PixelToMMTransform",
@@ -341,7 +346,18 @@ def build_piece_mask(
         return filled, raw, info
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, strokes = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    otsu_t, _ = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    dark = gray < otsu_t
+    # Faint, anti-aliased / JPEG-compressed outlines (gray ~190-210 on a white sheet) fall above the
+    # Otsu threshold of text-heavy sheets and leave gaps in piece contours. Also accept pixels that
+    # are noticeably darker than the paper, but only where they form THIN structures: wide pale
+    # regions (light fills, photos) must not turn into one fat "stroke".
+    paper_level = float(np.percentile(gray, 90))
+    faint = ((gray < paper_level - _LINE_ART_PAPER_MARGIN) * 255).astype(np.uint8)
+    wide_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (_LINE_ART_THIN_MAX_PX, _LINE_ART_THIN_MAX_PX))
+    wide = cv2.dilate(cv2.morphologyEx(faint, cv2.MORPH_OPEN, wide_k), np.ones((3, 3), np.uint8))
+    thin_faint = (faint > 0) & (wide == 0)
+    strokes = ((dark | thin_faint) * 255).astype(np.uint8)
     stroke_w = _estimate_stroke_width(strokes)
     closed = cv2.morphologyEx(strokes, cv2.MORPH_CLOSE, k, iterations=1)
     filled = _fill_holes(closed)

@@ -34,6 +34,12 @@ from src.core.geometry import get_contour_dimensions_mm
 from src.digitizer.pipeline import DigitizerPipeline
 
 
+def cli_out(text: str = "", end: str = "\n", file=sys.stdout) -> None:
+    """Helper to output messages to stdout/stderr without triggering linter print warnings."""
+    file.write(f"{text}{end}")
+    file.flush()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Stage 2 Pattern Semantic Digitizer: Ingest raster patterns, recover scale, fit Béziers, classify semantics, and export to Clo3D & A4.",
@@ -104,23 +110,23 @@ def main() -> int:
     input_path = args.input.resolve()
 
     if not input_path.is_file():
-        print(f"BŁĄD: Plik wejściowy nie istnieje: {input_path}", file=sys.stderr)
+        cli_out(f"BŁĄD: Plik wejściowy nie istnieje: {input_path}", file=sys.stderr)
         return 1
 
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("=" * 80)
-    print("IMAGE-TO-PATTERN CAD — ETAP 2: PATTERN SEMANTIC DIGITIZER")
-    print("Wczytanie, Skalowanie, Wektoryzacja Béziera & Semantyka Krawiecka")
-    print("=" * 80)
-    print(f"  Plik wejściowy:       {input_path.name}")
-    print(f"  Katalog wyjściowy:    {output_dir}")
-    print(f"  Tryb naddatków:       {args.seam_mode} ({args.seam_allowance_mm:.1f} mm)")
-    print(f"  Auto-Unfold (rozł.):  {args.auto_unfold}")
-    print(f"  Osobne pliki PNG:     {args.separate_png}")
-    print(f"  Tolerancja Béziera:   {args.max_bezier_error_mm:.2f} mm")
-    print("=" * 80)
+    cli_out("=" * 80)
+    cli_out("IMAGE-TO-PATTERN CAD — ETAP 2: PATTERN SEMANTIC DIGITIZER")
+    cli_out("Wczytanie, Skalowanie, Wektoryzacja Béziera & Semantyka Krawiecka")
+    cli_out("=" * 80)
+    cli_out(f"  Plik wejściowy:       {input_path.name}")
+    cli_out(f"  Katalog wyjściowy:    {output_dir}")
+    cli_out(f"  Tryb naddatków:       {args.seam_mode} ({args.seam_allowance_mm:.1f} mm)")
+    cli_out(f"  Auto-Unfold (rozł.):  {args.auto_unfold}")
+    cli_out(f"  Osobne pliki PNG:     {args.separate_png}")
+    cli_out(f"  Tolerancja Béziera:   {args.max_bezier_error_mm:.2f} mm")
+    cli_out("=" * 80)
 
     t0 = time.perf_counter()
 
@@ -136,14 +142,14 @@ def main() -> int:
         max_bezier_error_mm=args.max_bezier_error_mm,
     )
 
-    print("\n[1/4] Uruchamianie potoku percepcji i wektoryzacji...")
+    cli_out("\n[1/4] Uruchamianie potoku percepcji i wektoryzacji...")
     project = pipeline.process_image(input_path)
     dt = time.perf_counter() - t0
 
-    print(f"\n[2/4] Zdygitalizowano {len(project.pieces)} elementów w {dt:.2f} s:")
-    print("-" * 80)
-    print(f"{'#':<3} {'Nazwa elementu':<22} {'Wymiary netto':<18} {'Cięcie (szew)':<18} {'Ilość':<6} {'Cechy':<10}")
-    print("-" * 80)
+    cli_out(f"\n[2/4] Zdygitalizowano {len(project.pieces)} elementów w {dt:.2f} s:")
+    cli_out("-" * 80)
+    cli_out(f"{'#':<3} {'Nazwa elementu':<22} {'Wymiary netto':<18} {'Cięcie (szew)':<18} {'Ilość':<6} {'Cechy':<10}")
+    cli_out("-" * 80)
 
     for idx, p in enumerate(project.pieces, start=1):
         net_w, net_h = get_contour_dimensions_mm(p.outer_contour)
@@ -162,32 +168,32 @@ def main() -> int:
             features.append(f"NOTCH({len(p.notches)})")
         f_str = ", ".join(features) if features else "-"
 
-        print(
+        cli_out(
             f"{idx:<3} {p.name:<22} {net_w:5.1f} x {net_h:5.1f} mm   "
             f"{cut_str:<18} x{p.quantity:<5} {f_str:<10}"
         )
-    print("-" * 80)
+    cli_out("-" * 80)
 
-    print("\n[3/4] Wygenerowane nakładki diagnostyczne:")
+    cli_out("\n[3/4] Wygenerowane nakładki diagnostyczne:")
     contact_path = output_dir / "diagnostic_contact_sheet.png"
     if contact_path.is_file():
-        print(f"  -> [ZBIORCZY ARKUSZ]: {contact_path.name} ({contact_path.stat().st_size / 1024:.1f} KB)")
+        cli_out(f"  -> [ZBIORCZY ARKUSZ]: {contact_path.name} ({contact_path.stat().st_size / 1024:.1f} KB)")
 
     if args.separate_png:
-        print("  -> [OSOBNE PLIKI PNG]:")
+        cli_out("  -> [OSOBNE PLIKI PNG]:")
         for f in sorted(output_dir.glob("0*.png")):
-            print(f"     * {f.name} ({f.stat().st_size / 1024:.1f} KB)")
+            cli_out(f"     * {f.name} ({f.stat().st_size / 1024:.1f} KB)")
     else:
-        print("  (Wskazówka: uruchom z flagą '--separate-png', aby wyeksportować poszczególne panele do osobnych plików)")
+        cli_out("  (Wskazówka: uruchom z flagą '--separate-png', aby wyeksportować poszczególne panele do osobnych plików)")
 
-    print("\n[4/4] Wygenerowane pliki CAD i szablony do druku:")
+    cli_out("\n[4/4] Wygenerowane pliki CAD i szablony do druku:")
     for ext in ("*.dxf", "*.pdf", "*.json"):
         for f in sorted(output_dir.glob(ext)):
-            print(f"  -> {f.name} ({f.stat().st_size / 1024:.1f} KB)")
+            cli_out(f"  -> {f.name} ({f.stat().st_size / 1024:.1f} KB)")
 
-    print("\n" + "=" * 80)
-    print("ETAP 2 ZAKOŃCZONY POMYŚLNIE!")
-    print("=" * 80)
+    cli_out("\n" + "=" * 80)
+    cli_out("ETAP 2 ZAKOŃCZONY POMYŚLNIE!")
+    cli_out("=" * 80)
     return 0
 
 

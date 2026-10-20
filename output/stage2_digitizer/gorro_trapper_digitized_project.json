@@ -12497,29 +12497,44 @@
     },
     {
       "id": "frente",
-      "name": "Frente (Unfolded)",
+      "name": "Frente",
       "quantity": 1,
-      "target_width_cm": 24.99,
-      "target_height_cm": 11.16,
+      "target_width_cm": 12.5,
+      "target_height_cm": 11.0,
       "outer_contour": {
         "segments": [
           {
+            "type": "line",
+            "start": {
+              "x": 0.6967598576673669,
+              "y": 107.9984507102142
+            },
+            "end": {
+              "x": 0.0,
+              "y": 3.680306536144252
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": 0.0,
+            "edge_role": "fold"
+          },
+          {
             "type": "cubic_bezier",
             "start": {
-              "x": 124.86324079387349,
+              "x": 0.0,
               "y": 3.680306536144252
             },
             "end": {
-              "x": 249.72977024026528,
+              "x": 124.86652944639181,
               "y": 3.092498035887135
             },
             "cp1": {
-              "x": 135.51211262242091,
+              "x": 10.648871828547424,
               "y": -1.458500987697193
             },
             "cp2": {
-              "x": 236.49008260422247,
-              "y": -0.7991005363132693
+              "x": 111.62684181034898,
+              "y": -0.7991005363132692
             },
             "seam_allowance_mm": null,
             "edge_role": "seam"
@@ -12527,11 +12542,11 @@
           {
             "type": "line",
             "start": {
-              "x": 249.72977024026528,
+              "x": 124.86652944639181,
               "y": 3.092498035887135
             },
             "end": {
-              "x": 249.8632407938735,
+              "x": 125.0,
               "y": 109.6842409086324
             },
             "cp1": null,
@@ -12542,19 +12557,19 @@
           {
             "type": "cubic_bezier",
             "start": {
-              "x": 249.8632407938735,
+              "x": 125.0,
               "y": 109.6842409086324
             },
             "end": {
-              "x": 188.8969984078949,
+              "x": 64.03375761402143,
               "y": 89.9943994634993
             },
             "cp1": {
-              "x": 238.30315799372937,
+              "x": 113.43991719985588,
               "y": 112.95189083731783
             },
             "cp2": {
-              "x": 206.80682957913052,
+              "x": 81.94358878525705,
               "y": 89.84813819361236
             },
             "seam_allowance_mm": null,
@@ -12563,98 +12578,20 @@
           {
             "type": "cubic_bezier",
             "start": {
-              "x": 188.8969984078949,
+              "x": 64.03375761402143,
               "y": 89.9943994634993
             },
             "end": {
-              "x": 125.56000065154086,
+              "x": 0.6967598576673669,
               "y": 107.9984507102142
             },
             "cp1": {
-              "x": 172.96539709579247,
+              "x": 48.102156301918974,
               "y": 90.12450544925437
             },
             "cp2": {
-              "x": 133.5204263987759,
+              "x": 8.657185604902418,
               "y": 110.39528098211946
-            },
-            "seam_allowance_mm": null,
-            "edge_role": "seam"
-          },
-          {
-            "type": "cubic_bezier",
-            "start": {
-              "x": 125.56000065154086,
-              "y": 107.9984507102142
-            },
-            "end": {
-              "x": 61.98815981961484,
-              "y": 90.84204667781277
-            },
-            "cp1": {
-              "x": 117.63230142753727,
-              "y": 110.50140065843473
-            },
-            "cp2": {
-              "x": 77.92007765635613,
-              "y": 90.75933042403602
-            },
-            "seam_allowance_mm": null,
-            "edge_role": "seam"
-          },
-          {
-            "type": "cubic_bezier",
-            "start": {
-              "x": 61.98815981961484,
-              "y": 90.84204667781277
-            },
-            "end": {
-              "x": 1.2903691092133585,
-              "y": 111.34450432748665
-            },
-            "cp1": {
-              "x": 44.07797282081789,
-              "y": 90.93503382400337
-            },
-            "cp2": {
-              "x": 12.893069039905598,
-              "y": 114.4574458176114
-            },
-            "seam_allowance_mm": null,
-            "edge_role": "seam"
-          },
-          {
-            "type": "line",
-            "start": {
-              "x": 1.2903691092133585,
-              "y": 111.34450432748665
-            },
-            "end": {
-              "x": 0.0,
-              "y": 4.7604885906037255
-            },
-            "cp1": null,
-            "cp2": null,
-            "seam_allowance_mm": null,
-            "edge_role": "seam"
-          },
-          {
-            "type": "cubic_bezier",
-            "start": {
-              "x": 0.0,
-              "y": 4.7604885906037255
-            },
-            "end": {
-              "x": 124.86324079387349,
-              "y": 3.680306536144292
-            },
-            "cp1": {
-              "x": 13.186523334625178,
-              "y": 0.6923845490969787
-            },
-            "cp2": {
-              "x": 114.146676048738,
-              "y": -1.3157973510101606
             },
             "seam_allowance_mm": null,
             "edge_role": "seam"
@@ -12662,7 +12599,1406 @@
         ],
         "is_closed": true
       },
-      "cut_contour": null,
+      "cut_contour": {
+        "segments": [
+          {
+            "type": "line",
+            "start": {
+              "x": 66.806,
+              "y": -9.985
+            },
+            "end": {
+              "x": 72.122,
+              "y": -9.944
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 72.122,
+              "y": -9.944
+            },
+            "end": {
+              "x": 77.382,
+              "y": -9.877
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 77.382,
+              "y": -9.877
+            },
+            "end": {
+              "x": 82.553,
+              "y": -9.785
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 82.553,
+              "y": -9.785
+            },
+            "end": {
+              "x": 87.604,
+              "y": -9.667
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 87.604,
+              "y": -9.667
+            },
+            "end": {
+              "x": 92.504,
+              "y": -9.526
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 92.504,
+              "y": -9.526
+            },
+            "end": {
+              "x": 97.223,
+              "y": -9.36
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 97.223,
+              "y": -9.36
+            },
+            "end": {
+              "x": 101.729,
+              "y": -9.17
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 101.729,
+              "y": -9.17
+            },
+            "end": {
+              "x": 105.994,
+              "y": -8.956
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 105.994,
+              "y": -8.956
+            },
+            "end": {
+              "x": 109.99,
+              "y": -8.718
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 109.99,
+              "y": -8.718
+            },
+            "end": {
+              "x": 113.692,
+              "y": -8.455
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 113.692,
+              "y": -8.455
+            },
+            "end": {
+              "x": 117.079,
+              "y": -8.166
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 117.079,
+              "y": -8.166
+            },
+            "end": {
+              "x": 120.141,
+              "y": -7.847
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 120.141,
+              "y": -7.847
+            },
+            "end": {
+              "x": 122.885,
+              "y": -7.49
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 122.885,
+              "y": -7.49
+            },
+            "end": {
+              "x": 125.372,
+              "y": -7.067
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 125.372,
+              "y": -7.067
+            },
+            "end": {
+              "x": 134.857,
+              "y": -4.809
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 134.857,
+              "y": -4.809
+            },
+            "end": {
+              "x": 135.01,
+              "y": 117.864
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 135.01,
+              "y": 117.864
+            },
+            "end": {
+              "x": 125.194,
+              "y": 119.847
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 125.194,
+              "y": 119.847
+            },
+            "end": {
+              "x": 122.758,
+              "y": 120.013
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 122.758,
+              "y": 120.013
+            },
+            "end": {
+              "x": 120.452,
+              "y": 119.926
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 120.452,
+              "y": 119.926
+            },
+            "end": {
+              "x": 118.244,
+              "y": 119.655
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 118.244,
+              "y": 119.655
+            },
+            "end": {
+              "x": 116.1,
+              "y": 119.244
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 116.1,
+              "y": 119.244
+            },
+            "end": {
+              "x": 113.993,
+              "y": 118.721
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 113.993,
+              "y": 118.721
+            },
+            "end": {
+              "x": 111.903,
+              "y": 118.103
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 111.903,
+              "y": 118.103
+            },
+            "end": {
+              "x": 109.814,
+              "y": 117.406
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 109.814,
+              "y": 117.406
+            },
+            "end": {
+              "x": 107.718,
+              "y": 116.639
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 107.718,
+              "y": 116.639
+            },
+            "end": {
+              "x": 105.61,
+              "y": 115.813
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 105.61,
+              "y": 115.813
+            },
+            "end": {
+              "x": 103.487,
+              "y": 114.935
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 103.487,
+              "y": 114.935
+            },
+            "end": {
+              "x": 101.35,
+              "y": 114.016
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 101.35,
+              "y": 114.016
+            },
+            "end": {
+              "x": 99.199,
+              "y": 113.063
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 99.199,
+              "y": 113.063
+            },
+            "end": {
+              "x": 97.039,
+              "y": 112.084
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 97.039,
+              "y": 112.084
+            },
+            "end": {
+              "x": 94.871,
+              "y": 111.09
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 94.871,
+              "y": 111.09
+            },
+            "end": {
+              "x": 90.535,
+              "y": 109.085
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 90.535,
+              "y": 109.085
+            },
+            "end": {
+              "x": 88.377,
+              "y": 108.093
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 88.377,
+              "y": 108.093
+            },
+            "end": {
+              "x": 86.235,
+              "y": 107.119
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 86.235,
+              "y": 107.119
+            },
+            "end": {
+              "x": 84.115,
+              "y": 106.173
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 84.115,
+              "y": 106.173
+            },
+            "end": {
+              "x": 82.025,
+              "y": 105.264
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 82.025,
+              "y": 105.264
+            },
+            "end": {
+              "x": 79.973,
+              "y": 104.401
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 79.973,
+              "y": 104.401
+            },
+            "end": {
+              "x": 77.968,
+              "y": 103.593
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 77.968,
+              "y": 103.593
+            },
+            "end": {
+              "x": 76.021,
+              "y": 102.848
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 76.021,
+              "y": 102.848
+            },
+            "end": {
+              "x": 74.141,
+              "y": 102.176
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 74.141,
+              "y": 102.176
+            },
+            "end": {
+              "x": 72.341,
+              "y": 101.584
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 72.341,
+              "y": 101.584
+            },
+            "end": {
+              "x": 70.636,
+              "y": 101.081
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 70.636,
+              "y": 101.081
+            },
+            "end": {
+              "x": 69.04,
+              "y": 100.671
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 69.04,
+              "y": 100.671
+            },
+            "end": {
+              "x": 67.571,
+              "y": 100.36
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 67.571,
+              "y": 100.36
+            },
+            "end": {
+              "x": 66.25,
+              "y": 100.148
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 66.25,
+              "y": 100.148
+            },
+            "end": {
+              "x": 65.097,
+              "y": 100.032
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 65.097,
+              "y": 100.032
+            },
+            "end": {
+              "x": 64.104,
+              "y": 100.001
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 64.104,
+              "y": 100.001
+            },
+            "end": {
+              "x": 63.228,
+              "y": 100.041
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 63.228,
+              "y": 100.041
+            },
+            "end": {
+              "x": 62.088,
+              "y": 100.162
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 62.088,
+              "y": 100.162
+            },
+            "end": {
+              "x": 60.718,
+              "y": 100.376
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 60.718,
+              "y": 100.376
+            },
+            "end": {
+              "x": 59.154,
+              "y": 100.684
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 59.154,
+              "y": 100.684
+            },
+            "end": {
+              "x": 57.428,
+              "y": 101.082
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 57.428,
+              "y": 101.082
+            },
+            "end": {
+              "x": 55.563,
+              "y": 101.564
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 55.563,
+              "y": 101.564
+            },
+            "end": {
+              "x": 53.579,
+              "y": 102.123
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 53.579,
+              "y": 102.123
+            },
+            "end": {
+              "x": 51.495,
+              "y": 102.752
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 51.495,
+              "y": 102.752
+            },
+            "end": {
+              "x": 49.326,
+              "y": 103.442
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 49.326,
+              "y": 103.442
+            },
+            "end": {
+              "x": 47.087,
+              "y": 104.185
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 47.087,
+              "y": 104.185
+            },
+            "end": {
+              "x": 44.79,
+              "y": 104.974
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 44.79,
+              "y": 104.974
+            },
+            "end": {
+              "x": 42.449,
+              "y": 105.8
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 42.449,
+              "y": 105.8
+            },
+            "end": {
+              "x": 40.074,
+              "y": 106.655
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 40.074,
+              "y": 106.655
+            },
+            "end": {
+              "x": 37.678,
+              "y": 107.531
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 37.678,
+              "y": 107.531
+            },
+            "end": {
+              "x": 35.271,
+              "y": 108.421
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 35.271,
+              "y": 108.421
+            },
+            "end": {
+              "x": 28.086,
+              "y": 111.092
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 28.086,
+              "y": 111.092
+            },
+            "end": {
+              "x": 25.734,
+              "y": 111.958
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 25.734,
+              "y": 111.958
+            },
+            "end": {
+              "x": 23.419,
+              "y": 112.799
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 23.419,
+              "y": 112.799
+            },
+            "end": {
+              "x": 21.148,
+              "y": 113.608
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 21.148,
+              "y": 113.608
+            },
+            "end": {
+              "x": 18.927,
+              "y": 114.378
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 18.927,
+              "y": 114.378
+            },
+            "end": {
+              "x": 16.763,
+              "y": 115.101
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 16.763,
+              "y": 115.101
+            },
+            "end": {
+              "x": 14.657,
+              "y": 115.771
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 14.657,
+              "y": 115.771
+            },
+            "end": {
+              "x": 12.611,
+              "y": 116.382
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 12.611,
+              "y": 116.382
+            },
+            "end": {
+              "x": 10.619,
+              "y": 116.925
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 10.619,
+              "y": 116.925
+            },
+            "end": {
+              "x": 8.671,
+              "y": 117.394
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 8.671,
+              "y": 117.394
+            },
+            "end": {
+              "x": 6.741,
+              "y": 117.778
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 6.741,
+              "y": 117.778
+            },
+            "end": {
+              "x": 4.786,
+              "y": 118.06
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 4.786,
+              "y": 118.06
+            },
+            "end": {
+              "x": 2.724,
+              "y": 118.205
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 2.724,
+              "y": 118.205
+            },
+            "end": {
+              "x": 0.765,
+              "y": 118.138
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 0.765,
+              "y": 118.138
+            },
+            "end": {
+              "x": -0.06970600256043942,
+              "y": -6.75600196366237
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": -0.06970600256043942,
+              "y": -6.75600196366237
+            },
+            "end": {
+              "x": 0.932,
+              "y": -7.002
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 0.932,
+              "y": -7.002
+            },
+            "end": {
+              "x": 3.662,
+              "y": -7.493
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 3.662,
+              "y": -7.493
+            },
+            "end": {
+              "x": 6.652,
+              "y": -7.905
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 6.652,
+              "y": -7.905
+            },
+            "end": {
+              "x": 9.944,
+              "y": -8.266
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 9.944,
+              "y": -8.266
+            },
+            "end": {
+              "x": 13.542,
+              "y": -8.584
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 13.542,
+              "y": -8.584
+            },
+            "end": {
+              "x": 17.435,
+              "y": -8.865
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 17.435,
+              "y": -8.865
+            },
+            "end": {
+              "x": 21.602,
+              "y": -9.112
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 21.602,
+              "y": -9.112
+            },
+            "end": {
+              "x": 26.018,
+              "y": -9.327
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 26.018,
+              "y": -9.327
+            },
+            "end": {
+              "x": 30.656,
+              "y": -9.511
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 30.656,
+              "y": -9.511
+            },
+            "end": {
+              "x": 35.487,
+              "y": -9.664
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 35.487,
+              "y": -9.664
+            },
+            "end": {
+              "x": 40.481,
+              "y": -9.788
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 40.481,
+              "y": -9.788
+            },
+            "end": {
+              "x": 45.607,
+              "y": -9.883
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 45.607,
+              "y": -9.883
+            },
+            "end": {
+              "x": 50.833,
+              "y": -9.949
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 50.833,
+              "y": -9.949
+            },
+            "end": {
+              "x": 56.13,
+              "y": -9.988
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 56.13,
+              "y": -9.988
+            },
+            "end": {
+              "x": 61.465,
+              "y": -10.0
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          },
+          {
+            "type": "line",
+            "start": {
+              "x": 61.465,
+              "y": -10.0
+            },
+            "end": {
+              "x": 66.806,
+              "y": -9.985
+            },
+            "cp1": null,
+            "cp2": null,
+            "seam_allowance_mm": null,
+            "edge_role": "seam"
+          }
+        ],
+        "is_closed": true
+      },
       "internal_lines": [
         {
           "id": "frente_internal_1",
@@ -12673,11 +14009,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 133.99136579387348,
+                  "x": 9.128125,
                   "y": 7.805208333333334
                 },
                 "end": {
-                  "x": 133.46219912720682,
+                  "x": 8.598958333333334,
                   "y": 7.011458333333334
                 },
                 "cp1": null,
@@ -12688,11 +14024,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 133.46219912720682,
+                  "x": 8.598958333333334,
                   "y": 7.011458333333334
                 },
                 "end": {
-                  "x": 132.93303246054015,
+                  "x": 8.069791666666667,
                   "y": 7.540625
                 },
                 "cp1": null,
@@ -12703,11 +14039,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 132.93303246054015,
+                  "x": 8.069791666666667,
                   "y": 7.540625
                 },
                 "end": {
-                  "x": 133.1976157938735,
+                  "x": 8.334375,
                   "y": 6.217708333333333
                 },
                 "cp1": null,
@@ -12718,11 +14054,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 133.1976157938735,
+                  "x": 8.334375,
                   "y": 6.217708333333333
                 },
                 "end": {
-                  "x": 132.40386579387348,
+                  "x": 7.540625,
                   "y": 5.159375
                 },
                 "cp1": null,
@@ -12733,11 +14069,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 132.40386579387348,
+                  "x": 7.540625,
                   "y": 5.159375
                 },
                 "end": {
-                  "x": 133.46219912720682,
+                  "x": 8.598958333333334,
                   "y": 5.953125
                 },
                 "cp1": null,
@@ -12748,11 +14084,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 133.46219912720682,
+                  "x": 8.598958333333334,
                   "y": 5.953125
                 },
                 "end": {
-                  "x": 133.99136579387348,
+                  "x": 9.128125,
                   "y": 5.423958333333333
                 },
                 "cp1": null,
@@ -12763,11 +14099,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 133.99136579387348,
+                  "x": 9.128125,
                   "y": 5.423958333333333
                 },
                 "end": {
-                  "x": 133.72678246054016,
+                  "x": 8.863541666666666,
                   "y": 6.746875
                 },
                 "cp1": null,
@@ -12778,11 +14114,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 133.72678246054016,
+                  "x": 8.863541666666666,
                   "y": 6.746875
                 },
                 "end": {
-                  "x": 134.25594912720683,
+                  "x": 9.392708333333333,
                   "y": 7.805208333333334
                 },
                 "cp1": null,
@@ -12803,11 +14139,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 135.5788657938735,
+                  "x": 10.715625,
                   "y": 7.011458333333334
                 },
                 "end": {
-                  "x": 135.5788657938735,
+                  "x": 10.715625,
                   "y": 4.630208333333333
                 },
                 "cp1": null,
@@ -12818,11 +14154,11 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 135.5788657938735,
+                  "x": 10.715625,
                   "y": 4.630208333333333
                 },
                 "end": {
-                  "x": 135.8434491272068,
+                  "x": 10.980208333333334,
                   "y": 4.630208333333333
                 },
                 "cp1": null,
@@ -12833,222 +14169,12 @@
               {
                 "type": "line",
                 "start": {
-                  "x": 135.8434491272068,
+                  "x": 10.980208333333334,
                   "y": 4.630208333333333
                 },
                 "end": {
-                  "x": 135.8434491272068,
+                  "x": 10.980208333333334,
                   "y": 7.011458333333334
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              }
-            ],
-            "is_closed": false
-          }
-        },
-        {
-          "id": "frente_fold_axis",
-          "label": "Linia zgięcia (Fold)",
-          "line_type": "fold",
-          "contour": {
-            "segments": [
-              {
-                "type": "line",
-                "start": {
-                  "x": 125.56000065154086,
-                  "y": 107.9984507102142
-                },
-                "end": {
-                  "x": 124.86324079387349,
-                  "y": 3.680306536144252
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              }
-            ],
-            "is_closed": false
-          }
-        },
-        {
-          "id": "frente_internal_1_unfold_mirrored",
-          "label": "Linia wewnętrzna 1",
-          "line_type": "internal",
-          "contour": {
-            "segments": [
-              {
-                "type": "line",
-                "start": {
-                  "x": 115.79102967626064,
-                  "y": 7.926771688425723
-                },
-                "end": {
-                  "x": 116.30954640300597,
-                  "y": 7.126024020495041
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 116.30954640300597,
-                  "y": 7.126024020495041
-                },
-                "end": {
-                  "x": 116.84573434345336,
-                  "y": 7.648074989980762
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 116.84573434345336,
-                  "y": 7.648074989980762
-                },
-                "end": {
-                  "x": 116.56350340226803,
-                  "y": 6.328810595304746
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 116.56350340226803,
-                  "y": 6.328810595304746
-                },
-                "end": {
-                  "x": 117.34304561375623,
-                  "y": 5.259968957150375
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 117.34304561375623,
-                  "y": 5.259968957150375
-                },
-                "end": {
-                  "x": 116.29540943204432,
-                  "y": 6.067785110561857
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 116.29540943204432,
-                  "y": 6.067785110561857
-                },
-                "end": {
-                  "x": 115.75922149159695,
-                  "y": 5.545734141076137
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 115.75922149159695,
-                  "y": 5.545734141076137
-                },
-                "end": {
-                  "x": 116.04145243278228,
-                  "y": 6.864998535752153
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 116.04145243278228,
-                  "y": 6.864998535752153
-                },
-                "end": {
-                  "x": 115.52646994877735,
-                  "y": 7.930305931166109
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              }
-            ],
-            "is_closed": false
-          }
-        },
-        {
-          "id": "frente_internal_2_unfold_mirrored",
-          "label": "Linia wewnętrzna 2",
-          "line_type": "internal",
-          "contour": {
-            "segments": [
-              {
-                "type": "line",
-                "start": {
-                  "x": 114.1930685831397,
-                  "y": 7.15429796241833
-                },
-                "end": {
-                  "x": 114.161260398476,
-                  "y": 4.773260415068743
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 114.161260398476,
-                  "y": 4.773260415068743
-                },
-                "end": {
-                  "x": 113.89670067099271,
-                  "y": 4.776794657809158
-                },
-                "cp1": null,
-                "cp2": null,
-                "seam_allowance_mm": null,
-                "edge_role": "seam"
-              },
-              {
-                "type": "line",
-                "start": {
-                  "x": 113.89670067099271,
-                  "y": 4.776794657809158
-                },
-                "end": {
-                  "x": 113.92850885565642,
-                  "y": 7.157832205158744
                 },
                 "cp1": null,
                 "cp2": null,
@@ -13062,11 +14188,11 @@
       ],
       "notches": [],
       "grainline_start": {
-        "x": 187.3632407938735,
+        "x": 62.5,
         "y": 22.0
       },
       "grainline_end": {
-        "x": 187.3632407938735,
+        "x": 62.5,
         "y": 88.0
       },
       "seam_allowance_mm": 10.0,

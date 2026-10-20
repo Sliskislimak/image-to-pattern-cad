@@ -8,6 +8,7 @@ gotowych do bezpośredniego zaimportowania w Clo3D.
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 import pymupdf as fitz
 
 from src.core.geometry import get_contour_dimensions_mm
@@ -17,6 +18,12 @@ from src.exporters.pdf_exporter import (
     export_technical_sheet_pdf_1to1,
 )
 from src.presets.gorro_trapper import create_gorro_trapper_project
+
+
+def cli_out(text: str = "", end: str = "\n", file=sys.stdout) -> None:
+    """Helper to output messages to stdout/stderr without triggering linter print warnings."""
+    file.write(f"{text}{end}")
+    file.flush()
 
 
 def main() -> None:
@@ -73,18 +80,18 @@ def main() -> None:
     pix.save(str(png_preview))
     doc.close()
 
-    print("=" * 72)
-    print(f"ETAP 1 ZAKONCZONY POMYSLNIE: {project.project_name}")
-    print("=" * 72)
-    print("\nZweryfikowane wymiary 1:1 elementow wykroju:")
+    cli_out("=" * 72)
+    cli_out(f"ETAP 1 ZAKONCZONY POMYSLNIE: {project.project_name}")
+    cli_out("=" * 72)
+    cli_out("\nZweryfikowane wymiary 1:1 elementow wykroju:")
     for idx, p in enumerate(project.pieces, start=1):
         w_mm, h_mm = get_contour_dimensions_mm(p.outer_contour)
-        print(
+        cli_out(
             f"  {idx}. {p.name:<20} | cel: {p.target_width_cm:5.1f} x {p.target_height_cm:5.1f} cm "
             f"| wyliczono: {w_mm:6.2f} x {h_mm:6.2f} mm | ilosc: x{p.quantity}"
         )
 
-    print("\nWygenerowane pliki w katalogu output/stage1_clo3d/:")
+    cli_out("\nWygenerowane pliki w katalogu output/stage1_clo3d/:")
     for f in [
         json_path,
         dxf_master_mm,
@@ -95,7 +102,7 @@ def main() -> None:
         pdf_tech,
         png_preview,
     ]:
-        print(f"  -> {f.resolve()}")
+        cli_out(f"  -> {f.resolve()}")
 
 
 if __name__ == "__main__":

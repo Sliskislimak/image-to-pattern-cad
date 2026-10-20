@@ -66,7 +66,102 @@ Precyzyjne, matematyczne odwzorowanie wszystkich 6 części czapki z przesłanej
 
 ---
 
-## ✂️ ETAP 2: Silnik Zapasów na Szwy, Upakowanie 2D (Nesting) i Kafelkowanie A4 (Tiling)
+## 🧠 NOWY ETAP 2: Semantyczna Dygitalizacja Wykroju (Pattern Semantic Digitizer)
+
+W Nowym Etapie 2 powstał zaawansowany, a zarazem lekki silnik Computer Vision i geometrii analitycznej (`src/digitizer/`), który przekształca surową grafikę rastrową z internetu (JPG / PNG, np. [`samples/gorro_trapper.png`](samples/gorro_trapper.png)) w zweryfikowany model CAD [`PatternProject`](src/core/contract.py) w skali 1:1, ze szczegółowym rozpoznaniem technologii krawieckiej:
+
+```
+[Surowa grafika JPG / PNG]
+           │
+           ▼
+[1. Silnik Odzyskiwania Skali (Scale Recovery)] (src/digitizer/scale_recovery.py)
+  ├─ Scenariusz A: Wymiary tekstowe W x H (anizotropowe) + parser adnotacji (ES/PL/EN)
+  ├─ Scenariusz B: Dwupunktowa kalibracja referencyjna (p1, p2 + długość fizyczna)
+  └─ Scenariusz C: Automatyczna detekcja kwadratu kontrolnego 50x50 mm & metadane DPI
+           │  Wynik: ScaleResult (mm_per_px_x, mm_per_px_y, is_isotropic, confidence)
+           ▼
+[2. Segmentacja Rastrowa & Wektoryzator Schneidera] (src/digitizer/vectorizer.py)
+  ├─ Filtracja barwna HSV z wykrywaniem dominanty i filtrem flat-fill ratio
+  ├─ Detekcja ostrych narożników kątem skrętu (turning angle) i tłumieniem NMS
+  ├─ Wykrywanie krawędzi prostoliniowych (PathSegment.line)
+  └─ Dopasowanie krzywych sześciennych Béziera metodą najmniejszych kwadratów Schneidera
+           │  Wynik: Kontury CAD w mm (orientacja CAD: oś Y w górę, origin w (0,0))
+           ▼
+[3. Semantyczny Klasyfikator Krawiecki] (src/digitizer/semantic_classifier.py)
+  ├─ Tryby szwów: 'net_only' (odsunięcie na zewnątrz), 'included' (do wewnątrz), 'dual_detected'
+  ├─ Rozpoznawanie zgięć materiału ('doblez' / 'fold') z konfigurowalnym Auto-Unfold
+  ├─ Izolacja wewnętrznych rozcięć i zaszewek V (InternalLine na AAMA Layer 4)
+  └─ Karbiki montażowe (Notch na AAMA Layer 2 z wektorami normalnymi)
+           │  Wynik: Kompletny model PatternProject z PatternPiece
+           ▼
+[4. Potok E2E, Diagnostyka Wizualna & Eksportery] (src/digitizer/pipeline.py, run_digitizer.py)
+  ├─ Zbiorczy publikacyjny arkusz diagnostyczny (diagnostic_contact_sheet.png)
+  ├─ Opcjonalny przełącznik na osobne pliki PNG (--separate-png)
+  ├─ Eksporter Clo3D DXF-AAMA AutoCAD R12 (Warstwy 1, 2, 4, 5, 7, 8)
+  ├─ Eksporter Clo3D 1:1 Vector PDF
+  └─ Kafelkowanie do domowego druku wielostronicowego A4 (Hybrid Smart Pack & Tile)
+```
+
+### Moduły i Technologie Nowego Etapu 2:
+
+#### 1. Silnik Odzyskiwania Skali (`src/digitizer/scale_recovery.py`)
+- **Scenariusz A (Skalowanie wymiarowe)**: Parser wyrażeń regularnych wyciąga liczby z przecinkami i kropkami (`"12,5 cm"`, `"19.5"`, `"28 cm"`), mnożniki (`"x1"`, `"x2"`) oraz słowa kluczowe (`"doblez"`, `"elastizar"`), a następnie skaluje każdy element anizotropowo ($S_x, S_y$), eliminując dysproporcje rysunków internetowych.
+- **Scenariusz B (Kalibracja dwupunktowa)**: Funkcja `calibrate_from_two_points(p1, p2, real_distance_cm)` wylicza współczynnik skali z dokładnością do 4 miejsc po przecinku:
+  $$\text{mm\_per\_px} = \frac{L_{\text{cm}} \cdot 10}{\|P_2 - P_1\|_2}$$
+- **Scenariusz C (Detekcja kwadratu kontrolnego & DPI)**: `detect_calibration_square` automatycznie odnajduje kwadrat testowy $50 \times 50\text{ mm}$ za pomocą `approxPolyDP` i walidacji kątów prostych oraz czyta metadane rozdzielczości z bloków PNG `pHYs` i JPEG EXIF.
+
+#### 2. Segmentacja Rastrowa & Wektoryzator Schneidera (`src/digitizer/vectorizer.py`)
+- **Segmentacja odporna na szum**: Automatycznie lokalizuje dominujący odcień szablonu w przestrzeni barwnej HSV, usuwa napisy wymiarowe i znaki wodne operacjami morfologicznymi oraz stosuje metrykę *flat-fill ratio*, która odróżnia jednolicie wypełniony szablon od zdjęć gotowej odzieży.
+- **Detekcja narożników (F07)**: Wyznacza dyskretny kąt skrętu cięciw konturu i z zachowaniem tłumienia niemaksymalnego (NMS) dzieli obrys na łańcuchy gładkie i ostre węzły narożne.
+- **Algorytm Philipa J. Schneidera (*Graphics Gems I*, F08)**: Aproksymuje próbkowane punkty minimalną liczbą segmentów sześciennych Béziera:
+  - Parametryzacja długością cięciwy (*chord length*),
+  - Wyznaczanie wektorów stycznych i rozwiązywanie układu najmniejszych kwadratów,
+  - Strojenie parametrów metodą Newtona-Raphsona,
+  - Rekurencyjny podział w punkcie maksymalnego błędu z gwarancją ciągłości $G^1 / C^0$ i odchyleniem poniżej $0{,}5\text{ mm}$.
+- **Wykrywanie linii prostych (F09)**: Segmenty o odchyleniu mniejszym niż tolerancja kolinearności są redukowane do `PathSegment.line`.
+- **Układ współrzędnych**: Zastosowano klasę [`PixelToMMTransform`](src/digitizer/vectorizer.py), która mapuje punkty rastra na układ CAD (oś Y skierowana w górę, lewy dolny róg w $(0,0)$).
+
+#### 3. Semantyczny Klasyfikator Krawiecki (`src/digitizer/semantic_classifier.py`)
+- **3 Tryby Naddatków na Szwy**:
+  - `net_only`: Obrys traktowany jako linia szycia netto $\to$ dorysowanie zewnętrznej linii cięcia brutto (`cut_contour`).
+  - `included`: Obrys traktowany jako linia cięcia brutto $\to$ wyznaczenie wewnętrznej linii szycia netto poprzez odsunięcie do wewnątrz (*inward offset*) za pomocą `pyclipper`.
+  - `dual_detected`: Parowanie współśrodkowych konturów cięcia i szycia bezpośrednio z grafiki.
+- **Detekcja Zgięć & Auto-Unfold**:
+  - `detect_fold_edge`: Wykrywa krawędzie zgięcia z tekstu (*doblez*, *fold*, *al lomo*, *lbf*, *zgięcie*) lub geometrii, przypisując segmentowi rolę `edge_role="fold"` oraz `seam_allowance_mm=0.0`.
+  - `apply_auto_unfold`: Gdy `auto_unfold=True`, rozkłada element w odbiciu lustrzanym wzdłuż osi zgięcia do pełnego szablonu 1:1, a pierwotną oś zachowuje jako `InternalLine` na **AAMA Layer 5**.
+- **Wewnętrzne Cięcia & Karbiki**:
+  - Rozpoznaje zaszewki $V$ oraz linie rozcięć na **AAMA Layer 4**.
+  - `detect_notches`: Rzutuje znaczniki na obrys i wyznacza jednostkowy wektor normalnej zewnętrznej $\vec{n} = (-t_y, t_x)$ na **AAMA Layer 2**.
+
+#### 4. Narzędzie CLI & Nakładki Diagnostyczne (`run_digitizer.py`)
+Uruchomienie potoku percepcji:
+```bash
+# Standardowe uruchomienie z domyślnym generowaniem zbiorczego arkusza diagnostycznego
+python run_digitizer.py
+
+# Eksport z naddatkiem na szew 10 mm oraz rozłożeniem zgięć do pełnego szablonu 1:1
+python run_digitizer.py --auto-unfold --seam-allowance-mm 10.0
+
+# Generowanie zbiorczego arkusza ORAZ osobnych plików PNG dla każdego etapu percepcji
+python run_digitizer.py --separate-png
+```
+
+Generowane pliki w katalogu `output/stage2_digitizer/`:
+1. `diagnostic_contact_sheet.png` — zbiorczy, publikacyjny arkusz 6 paneli w siatce $2 \times 3$ z metadanymi i tabelą.
+2. `01_segmentation_masks.png` — maski segmentacji i Bounding Boxy (przy fladze `--separate-png`).
+3. `02_corners_detected.png` — wykryte narożniki i punkty węzłowe (przy fladze `--separate-png`).
+4. `03_bezier_curves.png` — dopasowane krzywe Béziera z punktami kontrolnymi CP1/CP2 (przy fladze `--separate-png`).
+5. `04_tailoring_semantics.png` — linie zgięcia, naddatki, zaszewki i karbiki z wektorami normalnymi (przy fladze `--separate-png`).
+6. `05_cad_calibrated_overlay.png` — zwymiarowany arkusz CAD 1:1 z kwadratem kalibracyjnym $50 \times 50\text{ mm}$ (przy fladze `--separate-png`).
+7. `gorro_trapper_clo3d_mm.dxf` — przemysłowy plik **DXF-AAMA (AutoCAD R12)** z warstwami 1, 2, 4, 5, 7, 8.
+8. `gorro_trapper_clo3d_import_1to1.pdf` — czysty wektorowy PDF 1:1 gotowy do importu w Clo3D.
+9. `gorro_trapper_technical_sheet_1to1.pdf` — wektorowy arkusz techniczny ze specyfikacją.
+10. `gorro_trapper_a4_print_hybrid.pdf` — wielostronicowy szablon do druku A4 z marginesami klejenia i paserami.
+11. `gorro_trapper_digitized_project.json` — zserializowany kontrakt danych Pydantic.
+
+---
+
+## ✂️ ETAP 3: Silnik Zapasów na Szwy, Upakowanie 2D (Nesting) i Kafelkowanie A4 (Tiling)
 
 W Etapie 2 system został rozbudowany o kompletną technologię krawiecką i poligraficzną: konfigurowalne naddatki na szwy (globalne oraz per-krawędź), zaawansowany podwójny silnik upakowania 2D i kafelkowania wielostronicowego A4 oraz pełną obsługę podwójnego konturu (linia cięcia + linia szycia netto) we wszystkich eksporterach CAD.
 
@@ -447,15 +542,25 @@ flowchart TD
   - Pełna obsługa warstw **DXF-AAMA** (Warstwa `1` Boundary, `2` Notches, `4` Internal, `5` Fold, `7` Grainline, `8` Text).
   - Algorytm rozkładania symetrii na linii zgięcia (`unfold_piece_on_fold`).
   - Eksportery wektorowe PDF 1:1 oraz DXF-AAMA (mm / cm) dla Clo3D.
-- [ ] **NOWY ETAP 2: Percepcja, Skala & Semantyka Obrazu (Pattern Semantic Digitizer)**
+- [x] **NOWY ETAP 2: Percepcja, Skala & Semantyka Obrazu (Pattern Semantic Digitizer) [UKOŃCZONY]**
   - Wczytywanie dowolnej grafiki wykroju z internetu (JPG / PNG).
-  - Odzyskiwanie skali 1:1:
-    - Sytuacja A: automatyczny odczyt wymiarów z tekstu (OCR),
-    - Sytuacja B: interaktywna kalibracja z 2 punktów użytkownika (*"ten odcinek ma 40 cm"*),
-    - Sytuacja C: wykrycie kwadratu testowego $5 \times 5\text{ cm}$.
-  - Klasyfikacja semantyczna linii: rozpoznawanie zgięć (*fold/doblez*), karbików (*notches*), zaszewek (*darts*) i rozcięć wewnętrznych (*slits*).
-  - Wykrywanie wrysowanych zapasów na szew (decyzja: linia cięcia czy linia szycia).
-  - Wektoryzacja konturów do gładkich krzywych Béziera 3. stopnia (algorytm Schneidera `fitCurves`).
+  - Odzyskiwanie skali 1:1 (`src/digitizer/scale_recovery.py`):
+    - Scenariusz A: skalowanie anizotropowe z wymiarów i wielojęzyczny parser adnotacji krawieckich (hiszpański, polski, angielski),
+    - Scenariusz B: dwupunktowa kalibracja izotropowa (`calibrate_from_two_points`),
+    - Scenariusz C: automatyczna detekcja kwadratu kontrolnego $50 \times 50\text{ mm}$ (`detect_calibration_square`) oraz odczyt DPI z metadanych PNG pHYs i JPEG EXIF.
+  - Wektoryzacja rastra i dopasowanie krzywych (`src/digitizer/vectorizer.py`):
+    - Segmentacja wypełnień HSV z tłumieniem napisów i znaku wodnego oraz filtrem *flat-fill ratio*,
+    - Detekcja narożników geometrycznych analizą dyskretnego kąta skrętu (*turning angle*),
+    - Optymalne dopasowanie krzywych sześciennych Béziera metodą najmniejszych kwadratów Philipa J. Schneidera (*Graphics Gems I*).
+  - Semantyczny klasyfikator krawiecki (`src/digitizer/semantic_classifier.py`):
+    - 3 tryby naddatków na szew: `net_only` (odsunięcie na zewnątrz), `included` (odsunięcie do wewnątrz), `dual_detected` (parowanie konturów),
+    - Detekcja linii zgięcia (`LINE_TYPE_FOLD`) i konfigurowalne rozkładanie symetrii (`auto_unfold`),
+    - Wewnętrzne linie cięcia i zaszewki $V$ (`InternalLine` na warstwie AAMA Layer 4),
+    - Karbiki montażowe (`Notch` na warstwie AAMA Layer 2 z wektorami normalnymi $\vec{n}$).
+  - Pełny potok E2E i nakładki diagnostyczne (`src/digitizer/pipeline.py` & `run_digitizer.py`):
+    - Publikacyjny zbiorczy arkusz diagnostyczny (`diagnostic_contact_sheet.png`),
+    - Przełącznik na osobne pliki PNG (`--separate-png`),
+    - Automatyczny eksport do Clo3D DXF-AAMA, PDF 1:1 oraz kafelkowania A4.
 - [x] **Etap 3: Silnik Zapasów na Szwy, 2D Nesting i Kafelkowanie A4 do Druku Domowego**
   - Jednolity i zmienny (per-krawędź) silnik odsunięć szwów (`PyclipperOffset` `JT_MITER` + wektory normalne z miterem Cramera).
   - Tryb Hybrydowy (pakowanie całych elementów na A4 + kafelkowanie ponadwymiarowych).

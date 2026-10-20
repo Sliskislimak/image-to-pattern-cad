@@ -13,24 +13,39 @@
     project: null,
     selectedPieceId: null,
     selectedSegIdx: null,
-    
+    hoveredPieceId: null,
+
+    // Per-piece 2D workspace offset in CAD mm: { [pieceId]: { x: number, y: number } }
+    pieceOffsets: {},
+
+    // Set of hidden piece IDs
+    hiddenPieceIds: new Set(),
+
     // Camera Transform (World coordinates in mm -> Screen coordinates in px)
     camera: {
       x: 100, // screen px offset
       y: 400, // screen px offset (Y-up)
-      zoom: 1.2, // px per mm
+      zoom: 1.0, // px per mm
     },
-    
-    // Drag / Pan interaction state
+
+    // Pan / Drag interaction state
     isPanning: false,
     panStart: { x: 0, y: 0 },
+    hasPanned: false,
     spacePressed: false,
-    
+
+    // Piece dragging state
+    draggingPieceId: null,
+    dragStartScreen: { x: 0, y: 0 },
+    dragStartWorld: { x: 0, y: 0 },
+    dragInitialOffset: { x: 0, y: 0 },
+    hasDraggedPiece: false,
+
     // View Options
     showHandles: false,
     showSeamPreview: true,
     activeTab: 'cad',
-    
+
     // Nesting
     nestingMode: 'hybrid',
     nestingData: null,
@@ -101,6 +116,73 @@
     };
   }
 
+  function getPieceOffset(pieceId) {
+    return state.pieceOffsets[pieceId] || { x: 0, y: 0 };
+  }
+
+  function isPieceVisible(pieceId) {
+    return !state.hiddenPieceIds.has(pieceId);
+  }
+
+  function pieceLocalToScreen(pieceId, lx, ly) {
+    const off = getPieceOffset(pieceId);
+    return worldToScreen(lx + off.x, ly + off.y);
+  }
+
+  // =========================================================================
+  // Automatic Non-Overlapping Grid Layout
+  // =========================================================================
+
+  function autoArrangePieces(fitView = true) {
+    if (!state.project || !state.project.pieces || state.project.pieces.length === 0) return;
+
+    const pieces = state.project.pieces.filter(p => isPieceVisible(p.id));
+    const listToArrange = pieces.length > 0 ? pieces : state.project.pieces;
+
+    const cols = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(listToArrange.length))));
+    const gapX = 55; // mm horizontal gap between pieces
+    const gapY = 60; // mm vertical gap between rows
+
+    let curX = 0;
+    let curY = 0;
+    let rowMaxH = 0;
+    let colIdx = 0;
+
+    for (const p of listToArrange) {
+      const b = getContourBounds(p.cut_contour || p.outer_contour) || {
+        minX: 0,
+        minY: 0,
+        maxX: 150,
+        maxY: 150,
+      };
+      const w = b.maxX - b.minX;
+      const h = b.maxY - b.minY;
+
+      // Place piece so its bottom-left bounding box sits at (curX, curY)
+      state.pieceOffsets[p.id] = {
+        x: Math.round((curX - b.minX) * 10) / 10,
+        y: Math.round((curY - b.minY) * 10) / 10,
+      };
+
+      curX += w + gapX;
+      rowMaxH = Math.max(rowMaxH, h);
+      colIdx++;
+
+      if (colIdx >= cols) {
+        colIdx = 0;
+        curX = 0;
+        curY += rowMaxH + gapY;
+        rowMaxH = 0;
+      }
+    }
+
+    if (fitView) {
+      fitViewToProject();
+    } else {
+      renderCanvas();
+    }
+  }
+
   // =========================================================================
   // Canvas Sizing & Rendering
   // =========================================================================
@@ -109,13 +191,13 @@
     const parent = canvas.parentElement;
     const rect = parent.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    
+
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
-    
-    ctx.scale(dpr, dpr);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     renderCanvas();
   }
 
@@ -162,7 +244,7 @@
     // Render Origin axes (0,0)
     const origin = worldToScreen(0, 0);
     ctx.lineWidth = 1.5;
-    
+
     // X axis (Red)
     ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
     ctx.beginPath();
@@ -183,7 +265,7 @@
     ctx.fillText('(0,0) CAD', origin.x + 5, origin.y + 12);
   }
 
-  function renderContour(contour, isClosed, strokeColor, fillColor, lineDash = [], lineWidth = 1.5) {
+  function renderContour(pieceId, contour, isClosed, strokeColor, fillColor, lineDash = [], lineWidth = 1.5) {
     if (!contour || !contour.segments || contour.segments.length === 0) return;
 
     ctx.save();
@@ -194,15 +276,15 @@
 
     ctx.beginPath();
     const segs = contour.segments;
-    const startPt = worldToScreen(segs[0].start.x, segs[0].start.y);
+    const startPt = pieceLocalToScreen(pieceId, segs[0].start.x, segs[0].start.y);
     ctx.moveTo(startPt.x, startPt.y);
 
     for (let i = 0; i < segs.length; i++) {
       const seg = segs[i];
-      const endPt = worldToScreen(seg.end.x, seg.end.y);
+      const endPt = pieceLocalToScreen(pieceId, seg.end.x, seg.end.y);
       if (seg.type === 'cubic_bezier' && seg.cp1 && seg.cp2) {
-        const cp1 = worldToScreen(seg.cp1.x, seg.cp1.y);
-        const cp2 = worldToScreen(seg.cp2.x, seg.cp2.y);
+        const cp1 = pieceLocalToScreen(pieceId, seg.cp1.x, seg.cp1.y);
+        const cp2 = pieceLocalToScreen(pieceId, seg.cp2.x, seg.cp2.y);
         ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, endPt.x, endPt.y);
       } else {
         ctx.lineTo(endPt.x, endPt.y);
@@ -217,22 +299,22 @@
     ctx.restore();
   }
 
-  function renderHandles(contour) {
+  function renderHandles(pieceId, contour) {
     if (!contour || !contour.segments) return;
 
     ctx.save();
     for (let i = 0; i < contour.segments.length; i++) {
       const seg = contour.segments[i];
-      const p1 = worldToScreen(seg.start.x, seg.start.y);
-      const p2 = worldToScreen(seg.end.x, seg.end.y);
+      const p1 = pieceLocalToScreen(pieceId, seg.start.x, seg.start.y);
+      const p2 = pieceLocalToScreen(pieceId, seg.end.x, seg.end.y);
 
       // Start / End anchor nodes (cyan square)
       ctx.fillStyle = '#06b6d4';
       ctx.fillRect(p1.x - 3, p1.y - 3, 6, 6);
 
       if (seg.type === 'cubic_bezier' && seg.cp1 && seg.cp2) {
-        const cp1 = worldToScreen(seg.cp1.x, seg.cp1.y);
-        const cp2 = worldToScreen(seg.cp2.x, seg.cp2.y);
+        const cp1 = pieceLocalToScreen(pieceId, seg.cp1.x, seg.cp1.y);
+        const cp2 = pieceLocalToScreen(pieceId, seg.cp2.x, seg.cp2.y);
 
         // Control lines
         ctx.strokeStyle = 'rgba(236, 72, 153, 0.4)';
@@ -261,7 +343,7 @@
     ctx.restore();
   }
 
-  function renderNotches(notches) {
+  function renderNotches(pieceId, notches) {
     if (!notches || notches.length === 0) return;
 
     ctx.save();
@@ -270,13 +352,13 @@
     ctx.setLineDash([]);
 
     for (const notch of notches) {
-      const p1 = worldToScreen(notch.position.x, notch.position.y);
-      // Direction vector
+      const p1 = pieceLocalToScreen(pieceId, notch.position.x, notch.position.y);
       const dx = notch.direction ? notch.direction.x : 0;
       const dy = notch.direction ? notch.direction.y : 1;
       const lengthMm = notch.length_mm || 5.0;
 
-      const p2 = worldToScreen(
+      const p2 = pieceLocalToScreen(
+        pieceId,
         notch.position.x + dx * lengthMm,
         notch.position.y + dy * lengthMm
       );
@@ -295,14 +377,14 @@
     ctx.restore();
   }
 
-  function renderInternalLines(internalLines) {
+  function renderInternalLines(pieceId, internalLines) {
     if (!internalLines || internalLines.length === 0) return;
 
     for (const line of internalLines) {
       const isFold = line.line_type === 'fold';
       const color = isFold ? '#a855f7' : '#ef4444';
       const dash = isFold ? [6, 3] : [];
-      renderContour(line.contour, false, color, null, dash, 1.5);
+      renderContour(pieceId, line.contour, false, color, null, dash, 1.5);
     }
   }
 
@@ -318,13 +400,13 @@
     ctx.setLineDash([]);
 
     ctx.beginPath();
-    const p1 = worldToScreen(seg.start.x, seg.start.y);
-    const p2 = worldToScreen(seg.end.x, seg.end.y);
+    const p1 = pieceLocalToScreen(piece.id, seg.start.x, seg.start.y);
+    const p2 = pieceLocalToScreen(piece.id, seg.end.x, seg.end.y);
     ctx.moveTo(p1.x, p1.y);
 
     if (seg.type === 'cubic_bezier' && seg.cp1 && seg.cp2) {
-      const cp1 = worldToScreen(seg.cp1.x, seg.cp1.y);
-      const cp2 = worldToScreen(seg.cp2.x, seg.cp2.y);
+      const cp1 = pieceLocalToScreen(piece.id, seg.cp1.x, seg.cp1.y);
+      const cp2 = pieceLocalToScreen(piece.id, seg.cp2.x, seg.cp2.y);
       ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y);
     } else {
       ctx.lineTo(p2.x, p2.y);
@@ -334,36 +416,42 @@
   }
 
   function renderPiece(piece) {
+    if (!isPieceVisible(piece.id)) return;
+
     const isSelected = piece.id === state.selectedPieceId;
+    const isHovered = piece.id === state.hoveredPieceId;
     const hasCut = piece.cut_contour && state.showSeamPreview;
 
     // 1. Fabric Fill & Boundary
-    const fillColor = isSelected
-      ? 'rgba(2, 132, 199, 0.16)'
-      : 'rgba(30, 41, 59, 0.4)';
+    let fillColor = 'rgba(30, 41, 59, 0.45)';
+    if (isSelected) {
+      fillColor = 'rgba(2, 132, 199, 0.20)';
+    } else if (isHovered) {
+      fillColor = 'rgba(56, 189, 248, 0.12)';
+    }
 
     // 2. Cut boundary (solid amber) if present
     if (hasCut) {
-      const cutStroke = isSelected ? '#fbbf24' : '#d97706';
-      renderContour(piece.cut_contour, true, cutStroke, fillColor, [], isSelected ? 2.5 : 1.5);
-      
+      const cutStroke = isSelected ? '#fbbf24' : isHovered ? '#f59e0b' : '#d97706';
+      renderContour(piece.id, piece.cut_contour, true, cutStroke, fillColor, [], isSelected ? 2.5 : 1.5);
+
       // Inner Sewing contour (dashed cyan)
-      renderContour(piece.outer_contour, true, '#06b6d4', null, [5, 3], 1.2);
+      renderContour(piece.id, piece.outer_contour, true, '#06b6d4', null, [5, 3], 1.3);
     } else {
       // Net-only contour
-      const strokeColor = isSelected ? '#38bdf8' : '#0284c7';
-      renderContour(piece.outer_contour, true, strokeColor, fillColor, [], isSelected ? 2.5 : 1.5);
+      const strokeColor = isSelected ? '#38bdf8' : isHovered ? '#0ea5e9' : '#0284c7';
+      renderContour(piece.id, piece.outer_contour, true, strokeColor, fillColor, [], isSelected ? 2.5 : 1.6);
     }
 
     // 3. Internal lines & darts (Layer 4 & 5)
-    renderInternalLines(piece.internal_lines);
+    renderInternalLines(piece.id, piece.internal_lines);
 
     // 4. Alignment Notches (Layer 2)
-    renderNotches(piece.notches);
+    renderNotches(piece.id, piece.notches);
 
     // 5. Bézier handles if enabled
     if (state.showHandles || isSelected) {
-      renderHandles(piece.outer_contour);
+      renderHandles(piece.id, piece.outer_contour);
     }
 
     // 6. Selected segment highlight
@@ -374,19 +462,39 @@
     // 7. Piece Name & Dimension Label
     const bounds = getContourBounds(piece.outer_contour);
     if (bounds) {
-      const center = worldToScreen((bounds.minX + bounds.maxX) / 2, (bounds.minY + bounds.maxY) / 2);
+      const center = pieceLocalToScreen(
+        piece.id,
+        (bounds.minX + bounds.maxX) / 2,
+        (bounds.minY + bounds.maxY) / 2
+      );
       const wMm = (bounds.maxX - bounds.minX).toFixed(1);
       const hMm = (bounds.maxY - bounds.minY).toFixed(1);
 
       ctx.save();
-      ctx.fillStyle = isSelected ? '#ffffff' : '#94a3b8';
+      // Subtle pill backdrop for text legibility
+      const titleText = `${piece.name} (x${piece.quantity})`;
+      const dimText = `${wMm} x ${hMm} mm`;
       ctx.font = 'bold 11px Inter, sans-serif';
+      const textW = Math.max(ctx.measureText(titleText).width, 90) + 14;
+
+      ctx.fillStyle = isSelected ? 'rgba(15, 23, 42, 0.85)' : 'rgba(15, 23, 42, 0.68)';
+      ctx.beginPath();
+      ctx.roundRect(center.x - textW / 2, center.y - 18, textW, 32, 6);
+      ctx.fill();
+
+      if (isSelected) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = isSelected ? '#ffffff' : '#cbd5e1';
       ctx.textAlign = 'center';
-      ctx.fillText(`${piece.name} (x${piece.quantity})`, center.x, center.y - 6);
+      ctx.fillText(titleText, center.x, center.y - 4);
 
       ctx.font = '10px "JetBrains Mono", monospace';
-      ctx.fillStyle = isSelected ? '#38bdf8' : '#64748b';
-      ctx.fillText(`${wMm} x ${hMm} mm`, center.x, center.y + 8);
+      ctx.fillStyle = isSelected ? '#38bdf8' : '#94a3b8';
+      ctx.fillText(dimText, center.x, center.y + 9);
       ctx.restore();
     }
   }
@@ -396,9 +504,15 @@
 
     if (!state.project || !state.project.pieces) return;
 
-    // Render pieces in order
+    // Render non-selected pieces first, then selected piece on top so it's never obscured
     for (const piece of state.project.pieces) {
-      renderPiece(piece);
+      if (piece.id !== state.selectedPieceId) {
+        renderPiece(piece);
+      }
+    }
+    const selected = state.project.pieces.find(p => p.id === state.selectedPieceId);
+    if (selected) {
+      renderPiece(selected);
     }
 
     // Update zoom label
@@ -427,6 +541,18 @@
     return { minX, minY, maxX, maxY };
   }
 
+  function getPieceWorldBounds(piece) {
+    const b = getContourBounds(piece.cut_contour || piece.outer_contour);
+    if (!b) return null;
+    const off = getPieceOffset(piece.id);
+    return {
+      minX: b.minX + off.x,
+      minY: b.minY + off.y,
+      maxX: b.maxX + off.x,
+      maxY: b.maxY + off.y,
+    };
+  }
+
   function pointInPolygon(px, py, vertices) {
     let inside = false;
     for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
@@ -444,6 +570,15 @@
     const pts = [];
     for (const seg of contour.segments) {
       pts.push(seg.start);
+      // Sample midpoints of cubic bezier for accurate hit testing on curved shapes
+      if (seg.type === 'cubic_bezier' && seg.cp1 && seg.cp2) {
+        for (const t of [0.25, 0.5, 0.75]) {
+          const mt = 1 - t;
+          const bx = mt * mt * mt * seg.start.x + 3 * mt * mt * t * seg.cp1.x + 3 * mt * t * t * seg.cp2.x + t * t * t * seg.end.x;
+          const by = mt * mt * mt * seg.start.y + 3 * mt * mt * t * seg.cp1.y + 3 * mt * t * t * seg.cp2.y + t * t * t * seg.end.y;
+          pts.push({ x: bx, y: by });
+        }
+      }
     }
     return pts;
   }
@@ -459,12 +594,27 @@
   function findHitPiece(wx, wy) {
     if (!state.project || !state.project.pieces) return null;
 
-    // Check in reverse order (topmost first)
-    for (let i = state.project.pieces.length - 1; i >= 0; i--) {
-      const p = state.project.pieces[i];
+    // Test selected piece first if visible (since it renders on top)
+    const orderedPieces = [...state.project.pieces];
+    if (state.selectedPieceId) {
+      const selIdx = orderedPieces.findIndex(p => p.id === state.selectedPieceId);
+      if (selIdx !== -1) {
+        const [selPiece] = orderedPieces.splice(selIdx, 1);
+        orderedPieces.push(selPiece);
+      }
+    }
+
+    for (let i = orderedPieces.length - 1; i >= 0; i--) {
+      const p = orderedPieces[i];
+      if (!isPieceVisible(p.id)) continue;
+
+      const off = getPieceOffset(p.id);
+      const lx = wx - off.x;
+      const ly = wy - off.y;
+
       const targetContour = p.cut_contour || p.outer_contour;
       const poly = getContourPolygonVertices(targetContour);
-      if (poly.length >= 3 && pointInPolygon(wx, wy, poly)) {
+      if (poly.length >= 3 && pointInPolygon(lx, ly, poly)) {
         return p;
       }
     }
@@ -473,19 +623,23 @@
 
   function findClosestSegmentIndex(piece, wx, wy) {
     if (!piece || !piece.outer_contour) return null;
+    const off = getPieceOffset(piece.id);
+    const lx = wx - off.x;
+    const ly = wy - off.y;
+
     const segs = piece.outer_contour.segments;
     let bestDist = Infinity;
     let bestIdx = null;
 
     for (let i = 0; i < segs.length; i++) {
       const s = segs[i];
-      const d = distToSegment(wx, wy, s.start.x, s.start.y, s.end.x, s.end.y);
+      const d = distToSegment(lx, ly, s.start.x, s.start.y, s.end.x, s.end.y);
       if (d < bestDist) {
         bestDist = d;
         bestIdx = i;
       }
     }
-    return bestDist <= 25.0 ? bestIdx : null; // threshold in mm
+    return bestDist <= 30.0 ? bestIdx : 0;
   }
 
   function fitViewToProject() {
@@ -493,21 +647,25 @@
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const p of state.project.pieces) {
-      const b = getContourBounds(p.cut_contour || p.outer_contour);
-      if (b) {
-        minX = Math.min(minX, b.minX);
-        minY = Math.min(minY, b.minY);
-        maxX = Math.max(maxX, b.maxX);
-        maxY = Math.max(maxY, b.maxY);
+      if (!isPieceVisible(p.id)) continue;
+      const wb = getPieceWorldBounds(p);
+      if (wb) {
+        minX = Math.min(minX, wb.minX);
+        minY = Math.min(minY, wb.minY);
+        maxX = Math.max(maxX, wb.maxX);
+        maxY = Math.max(maxY, wb.maxY);
       }
     }
 
-    if (!isFinite(minX)) return;
+    if (!isFinite(minX)) {
+      renderCanvas();
+      return;
+    }
 
     const parent = canvas.parentElement;
-    const viewW = parent.clientWidth;
-    const viewH = parent.clientHeight;
-    const padding = 60;
+    const viewW = parent.clientWidth || 800;
+    const viewH = parent.clientHeight || 600;
+    const padding = 65;
 
     const projW = maxX - minX;
     const projH = maxY - minY;
@@ -516,9 +674,8 @@
 
     const zoomX = (viewW - padding * 2) / projW;
     const zoomY = (viewH - padding * 2) / projH;
-    state.camera.zoom = Math.max(0.2, Math.min(zoomX, zoomY, 2.5));
+    state.camera.zoom = Math.max(0.15, Math.min(zoomX, zoomY, 2.5));
 
-    // Center project
     const projCenterX = (minX + maxX) / 2;
     const projCenterY = (minY + maxY) / 2;
 
@@ -528,8 +685,76 @@
     renderCanvas();
   }
 
+  function focusOnPiece(pieceId) {
+    if (!state.project || !pieceId) return;
+    const piece = state.project.pieces.find(p => p.id === pieceId);
+    if (!piece) return;
+
+    // Ensure piece is visible
+    state.hiddenPieceIds.delete(pieceId);
+    renderPiecesList();
+
+    const wb = getPieceWorldBounds(piece);
+    if (!wb) return;
+
+    const parent = canvas.parentElement;
+    const viewW = parent.clientWidth || 800;
+    const viewH = parent.clientHeight || 600;
+    const padding = 90;
+
+    const pw = Math.max(20, wb.maxX - wb.minX);
+    const ph = Math.max(20, wb.maxY - wb.minY);
+
+    const zoomX = (viewW - padding * 2) / pw;
+    const zoomY = (viewH - padding * 2) / ph;
+    state.camera.zoom = Math.max(0.25, Math.min(zoomX, zoomY, 3.0));
+
+    const cx = (wb.minX + wb.maxX) / 2;
+    const cy = (wb.minY + wb.maxY) / 2;
+
+    state.camera.x = viewW / 2 - cx * state.camera.zoom;
+    state.camera.y = viewH / 2 + cy * state.camera.zoom;
+
+    renderCanvas();
+  }
+
   // =========================================================================
-  // Canvas Mouse & Interaction Events
+  // Visibility & Isolation Controls
+  // =========================================================================
+
+  function togglePieceVisibility(pieceId) {
+    if (state.hiddenPieceIds.has(pieceId)) {
+      state.hiddenPieceIds.delete(pieceId);
+    } else {
+      state.hiddenPieceIds.add(pieceId);
+    }
+    renderPiecesList();
+    renderCanvas();
+  }
+
+  function showAllPieces() {
+    state.hiddenPieceIds.clear();
+    renderPiecesList();
+    fitViewToProject();
+  }
+
+  function isolatePiece(pieceId) {
+    if (!state.project || !state.project.pieces) return;
+    const targetId = pieceId || state.selectedPieceId;
+    if (!targetId) return;
+
+    state.hiddenPieceIds.clear();
+    for (const p of state.project.pieces) {
+      if (p.id !== targetId) {
+        state.hiddenPieceIds.add(p.id);
+      }
+    }
+    selectPiece(targetId);
+    focusOnPiece(targetId);
+  }
+
+  // =========================================================================
+  // Canvas Mouse & Interaction Events (Drag Piece / Pan Table / Select)
   // =========================================================================
 
   canvas.addEventListener('wheel', (e) => {
@@ -550,16 +775,17 @@
   });
 
   canvas.addEventListener('mousedown', (e) => {
-    // Pan with middle button, or left button with Space pressed, or right click
+    // Middle click, Right click, or Space + Left click => Pan camera
     if (e.button === 1 || (e.button === 0 && state.spacePressed) || e.button === 2) {
       state.isPanning = true;
+      state.hasPanned = false;
       state.panStart = { x: e.clientX, y: e.clientY };
       canvas.style.cursor = 'grabbing';
       e.preventDefault();
       return;
     }
 
-    // Left click: selection
+    // Left click: either grab a piece to move it, or pan background
     if (e.button === 0) {
       const rect = canvas.getBoundingClientRect();
       const sx = e.clientX - rect.left;
@@ -569,11 +795,19 @@
       const hit = findHitPiece(w.x, w.y);
       if (hit) {
         selectPiece(hit.id);
-        const segIdx = findClosestSegmentIndex(hit, w.x, w.y);
-        selectSegment(segIdx);
+        state.draggingPieceId = hit.id;
+        state.dragStartScreen = { x: e.clientX, y: e.clientY };
+        state.dragStartWorld = { x: w.x, y: w.y };
+        const curOff = getPieceOffset(hit.id);
+        state.dragInitialOffset = { x: curOff.x, y: curOff.y };
+        state.hasDraggedPiece = false;
+        canvas.style.cursor = 'grabbing';
       } else {
-        selectPiece(null);
-        selectSegment(null);
+        // Dragging on empty background pans the table smoothly
+        state.isPanning = true;
+        state.hasPanned = false;
+        state.panStart = { x: e.clientX, y: e.clientY };
+        canvas.style.cursor = 'grabbing';
       }
       renderCanvas();
     }
@@ -583,10 +817,38 @@
     const rect = canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
+    const w = screenToWorld(sx, sy);
 
+    // 1. Moving / dragging a pattern piece on the table
+    if (state.draggingPieceId) {
+      const distPx = Math.hypot(
+        e.clientX - state.dragStartScreen.x,
+        e.clientY - state.dragStartScreen.y
+      );
+      if (distPx > 3) {
+        state.hasDraggedPiece = true;
+      }
+
+      const dxMm = w.x - state.dragStartWorld.x;
+      const dyMm = w.y - state.dragStartWorld.y;
+
+      state.pieceOffsets[state.draggingPieceId] = {
+        x: Math.round((state.dragInitialOffset.x + dxMm) * 10) / 10,
+        y: Math.round((state.dragInitialOffset.y + dyMm) * 10) / 10,
+      };
+
+      lblCursorCoords.textContent = `X: ${w.x.toFixed(1)} mm, Y: ${w.y.toFixed(1)} mm (Przesuwanie elementu)`;
+      renderCanvas();
+      return;
+    }
+
+    // 2. Panning the camera / table
     if (state.isPanning) {
       const dx = e.clientX - state.panStart.x;
       const dy = e.clientY - state.panStart.y;
+      if (Math.hypot(dx, dy) > 2) {
+        state.hasPanned = true;
+      }
       state.camera.x += dx;
       state.camera.y += dy;
       state.panStart = { x: e.clientX, y: e.clientY };
@@ -594,17 +856,41 @@
       return;
     }
 
-    // Coordinate hover indicator
+    // 3. Hover feedback & Coordinate indicator
     if (sx >= 0 && sx <= rect.width && sy >= 0 && sy <= rect.height) {
-      const w = screenToWorld(sx, sy);
       lblCursorCoords.textContent = `X: ${w.x.toFixed(1)} mm, Y: ${w.y.toFixed(1)} mm`;
+      const hit = findHitPiece(w.x, w.y);
+      const hitId = hit ? hit.id : null;
+      if (hitId !== state.hoveredPieceId) {
+        state.hoveredPieceId = hitId;
+        canvas.style.cursor = state.spacePressed ? 'grab' : hitId ? 'move' : 'crosshair';
+        renderCanvas();
+      }
     }
   });
 
-  window.addEventListener('mouseup', () => {
+  window.addEventListener('mouseup', (e) => {
+    if (state.draggingPieceId) {
+      // If user just clicked the piece without dragging it, select the closest segment
+      if (!state.hasDraggedPiece && state.project) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+        const w = screenToWorld(sx, sy);
+        const piece = state.project.pieces.find(p => p.id === state.draggingPieceId);
+        if (piece) {
+          const segIdx = findClosestSegmentIndex(piece, w.x, w.y);
+          selectSegment(segIdx);
+        }
+      }
+      state.draggingPieceId = null;
+      canvas.style.cursor = state.hoveredPieceId ? 'move' : 'crosshair';
+      renderCanvas();
+    }
+
     if (state.isPanning) {
       state.isPanning = false;
-      canvas.style.cursor = state.spacePressed ? 'grab' : 'crosshair';
+      canvas.style.cursor = state.spacePressed ? 'grab' : state.hoveredPieceId ? 'move' : 'crosshair';
     }
   });
 
@@ -620,7 +906,7 @@
   window.addEventListener('keyup', (e) => {
     if (e.code === 'Space') {
       state.spacePressed = false;
-      canvas.style.cursor = 'crosshair';
+      canvas.style.cursor = state.hoveredPieceId ? 'move' : 'crosshair';
     }
   });
 
@@ -649,10 +935,26 @@
 
   document.getElementById('btn-fit-screen').addEventListener('click', fitViewToProject);
 
+  document.getElementById('btn-focus-selected').addEventListener('click', () => {
+    if (state.selectedPieceId) {
+      focusOnPiece(state.selectedPieceId);
+    } else {
+      fitViewToProject();
+    }
+  });
+
   document.getElementById('btn-reset-view').addEventListener('click', () => {
     state.camera = { x: 100, y: 400, zoom: 1.0 };
     renderCanvas();
   });
+
+  document.getElementById('btn-auto-arrange').addEventListener('click', () => {
+    autoArrangePieces(true);
+  });
+
+  document.getElementById('btn-show-all-pieces').addEventListener('click', showAllPieces);
+  document.getElementById('btn-isolate-selected').addEventListener('click', () => isolatePiece(state.selectedPieceId));
+  document.getElementById('btn-sidebar-auto-arrange').addEventListener('click', () => autoArrangePieces(true));
 
   document.getElementById('toggle-handles').addEventListener('change', (e) => {
     state.showHandles = e.target.checked;
@@ -688,8 +990,7 @@
     try {
       showLoading('Wczytywanie projektu CAD...');
       const proj = await apiCall('/api/project');
-      setProject(proj);
-      fitViewToProject();
+      setProject(proj, true);
     } catch (err) {
       alert(`Błąd wczytywania projektu: ${err.message}`);
     } finally {
@@ -697,18 +998,25 @@
     }
   }
 
-  function setProject(proj) {
+  function setProject(proj, rearrange = false) {
     state.project = proj;
     projectTitleEl.textContent = proj.project_name || 'Projekt CAD';
-    piecesCountBadge.textContent = proj.pieces ? proj.pieces.length : 0;
+
+    // Check if pieces need initial grid arrangement so they don't stack at (0,0)
+    const pieces = proj.pieces || [];
+    const hasMissingOffsets = pieces.some(p => !(p.id in state.pieceOffsets));
+
+    if (rearrange || hasMissingOffsets) {
+      autoArrangePieces(false);
+    }
 
     // Populate piece list sidebar
     renderPiecesList();
 
     // Select first piece if available and none selected
-    if (proj.pieces && proj.pieces.length > 0) {
-      if (!state.selectedPieceId || !proj.pieces.find(p => p.id === state.selectedPieceId)) {
-        selectPiece(proj.pieces[0].id);
+    if (pieces.length > 0) {
+      if (!state.selectedPieceId || !pieces.find(p => p.id === state.selectedPieceId)) {
+        selectPiece(pieces[0].id);
       } else {
         updateInspector();
       }
@@ -716,7 +1024,11 @@
       selectPiece(null);
     }
 
-    renderCanvas();
+    if (rearrange) {
+      fitViewToProject();
+    } else {
+      renderCanvas();
+    }
   }
 
   function selectPiece(pieceId) {
@@ -746,15 +1058,25 @@
 
   function renderPiecesList() {
     piecesListEl.innerHTML = '';
-    if (!state.project || !state.project.pieces) return;
+    if (!state.project || !state.project.pieces) {
+      piecesCountBadge.textContent = '0';
+      return;
+    }
+
+    const totalCount = state.project.pieces.length;
+    const visibleCount = state.project.pieces.filter(p => isPieceVisible(p.id)).length;
+    piecesCountBadge.textContent = visibleCount === totalCount ? `${totalCount}` : `${visibleCount}/${totalCount}`;
 
     for (const p of state.project.pieces) {
       const b = getContourBounds(p.outer_contour);
       const wMm = b ? (b.maxX - b.minX).toFixed(1) : '-';
       const hMm = b ? (b.maxY - b.minY).toFixed(1) : '-';
+      const visible = isPieceVisible(p.id);
 
       const card = document.createElement('div');
-      card.className = `piece-card p-2.5 rounded-lg border border-slate-800 bg-slate-900/60 cursor-pointer ${p.id === state.selectedPieceId ? 'selected' : ''}`;
+      card.className = `piece-card p-2.5 rounded-lg border border-slate-800 bg-slate-900/60 cursor-pointer transition ${
+        p.id === state.selectedPieceId ? 'selected' : ''
+      } ${!visible ? 'opacity-45' : ''}`;
       card.dataset.id = p.id;
 
       let badgesHtml = '';
@@ -769,9 +1091,17 @@
       }
 
       card.innerHTML = `
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-xs text-white truncate max-w-[140px]">${p.name}</span>
-          <span class="text-[10px] font-mono font-bold text-sky-400 bg-slate-800 px-1.5 py-0.5 rounded">x${p.quantity}</span>
+        <div class="flex items-center justify-between gap-1">
+          <span class="font-medium text-xs text-white truncate flex-1">${p.name}</span>
+          <div class="flex items-center space-x-1 shrink-0">
+            <button type="button" class="btn-piece-isolate p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-sky-400 transition" title="Pokaż tylko ten wykrój (Izoluj)">
+              <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" class="btn-piece-vis p-1 rounded hover:bg-slate-700 ${visible ? 'text-emerald-400' : 'text-slate-500'} transition" title="${visible ? 'Ukryj ten wykrój' : 'Pokaż ten wykrój'}">
+              <i data-lucide="${visible ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i>
+            </button>
+            <span class="text-[10px] font-mono font-bold text-sky-400 bg-slate-800 px-1.5 py-0.5 rounded">x${p.quantity}</span>
+          </div>
         </div>
         <div class="mt-1 flex items-center justify-between text-[11px] font-mono text-slate-400">
           <span>${wMm} x ${hMm} mm</span>
@@ -780,9 +1110,33 @@
         ${badgesHtml ? `<div class="mt-1.5 flex flex-wrap gap-1">${badgesHtml}</div>` : ''}
       `;
 
-      card.addEventListener('click', () => selectPiece(p.id));
+      // Visibility toggle button
+      const btnVis = card.querySelector('.btn-piece-vis');
+      btnVis.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePieceVisibility(p.id);
+      });
+
+      // Isolate button
+      const btnIso = card.querySelector('.btn-piece-isolate');
+      btnIso.addEventListener('click', (e) => {
+        e.stopPropagation();
+        isolatePiece(p.id);
+      });
+
+      // Clicking card selects piece (and makes it visible if it was hidden)
+      card.addEventListener('click', () => {
+        if (!isPieceVisible(p.id)) {
+          state.hiddenPieceIds.delete(p.id);
+          renderPiecesList();
+        }
+        selectPiece(p.id);
+      });
+
       piecesListEl.appendChild(card);
     }
+
+    lucide.createIcons();
   }
 
   function updateInspector() {
@@ -856,7 +1210,7 @@
     try {
       showLoading(`Stosowanie naddatku ${val.toFixed(1)} mm do wszystkich części...`);
       const res = await apiCall('/api/project/global-seam', 'POST', { seam_allowance_mm: val });
-      setProject(res.project);
+      setProject(res.project, false);
     } catch (err) {
       alert(`Błąd: ${err.message}`);
     } finally {
@@ -874,11 +1228,10 @@
     try {
       showLoading('Aktualizacja naddatku elementu...');
       const res = await apiCall(`/api/pieces/${state.selectedPieceId}/seam-allowance`, 'POST', { seam_allowance_mm: val });
-      // Update piece locally
       const idx = state.project.pieces.findIndex(p => p.id === state.selectedPieceId);
       if (idx !== -1) {
         state.project.pieces[idx] = res.piece;
-        setProject(state.project);
+        setProject(state.project, false);
       }
     } catch (err) {
       alert(`Błąd: ${err.message}`);
@@ -889,13 +1242,18 @@
 
   btnUnfoldPiece.addEventListener('click', async () => {
     if (!state.selectedPieceId) return;
+    const oldId = state.selectedPieceId;
     try {
       showLoading('Rozkładanie elementu na linii zgięcia...');
-      const res = await apiCall(`/api/pieces/${state.selectedPieceId}/unfold`, 'POST');
-      const idx = state.project.pieces.findIndex(p => p.id === state.selectedPieceId);
+      const res = await apiCall(`/api/pieces/${oldId}/unfold`, 'POST');
+      const idx = state.project.pieces.findIndex(p => p.id === oldId);
       if (idx !== -1) {
+        if (res.piece.id !== oldId && state.pieceOffsets[oldId]) {
+          state.pieceOffsets[res.piece.id] = state.pieceOffsets[oldId];
+        }
         state.project.pieces[idx] = res.piece;
-        setProject(state.project);
+        state.selectedPieceId = res.piece.id;
+        setProject(state.project, false);
       }
     } catch (err) {
       alert(`Błąd: ${err.message}`);
@@ -906,13 +1264,18 @@
 
   btnMirrorPiece.addEventListener('click', async () => {
     if (!state.selectedPieceId) return;
+    const oldId = state.selectedPieceId;
     try {
       showLoading('Odbicie lustrzane elementu...');
-      const res = await apiCall(`/api/pieces/${state.selectedPieceId}/mirror`, 'POST');
-      const idx = state.project.pieces.findIndex(p => p.id === state.selectedPieceId);
+      const res = await apiCall(`/api/pieces/${oldId}/mirror`, 'POST');
+      const idx = state.project.pieces.findIndex(p => p.id === oldId);
       if (idx !== -1) {
+        if (res.piece.id !== oldId && state.pieceOffsets[oldId]) {
+          state.pieceOffsets[res.piece.id] = state.pieceOffsets[oldId];
+        }
         state.project.pieces[idx] = res.piece;
-        setProject(state.project);
+        state.selectedPieceId = res.piece.id;
+        setProject(state.project, false);
       }
     } catch (err) {
       alert(`Błąd: ${err.message}`);
@@ -930,7 +1293,7 @@
         const idx = state.project.pieces.findIndex(p => p.id === state.selectedPieceId);
         if (idx !== -1) {
           state.project.pieces[idx] = res.piece;
-          setProject(state.project);
+          setProject(state.project, false);
         }
       } catch (err) {
         alert(`Błąd: ${err.message}`);
@@ -955,7 +1318,7 @@
       const idx = state.project.pieces.findIndex(p => p.id === state.selectedPieceId);
       if (idx !== -1) {
         state.project.pieces[idx] = res.piece;
-        setProject(state.project);
+        setProject(state.project, false);
       }
     } catch (err) {
       alert(`Błąd: ${err.message}`);
@@ -977,7 +1340,7 @@
       const idx = state.project.pieces.findIndex(p => p.id === state.selectedPieceId);
       if (idx !== -1) {
         state.project.pieces[idx] = res.piece;
-        setProject(state.project);
+        setProject(state.project, false);
       }
     } catch (err) {
       alert(`Błąd: ${err.message}`);
@@ -990,9 +1353,10 @@
     const presetId = e.target.value;
     try {
       showLoading('Ładowanie wzorca...');
+      state.hiddenPieceIds.clear();
+      state.pieceOffsets = {};
       const res = await apiCall(`/api/presets/${presetId}/load`, 'POST');
-      setProject(res.project);
-      fitViewToProject();
+      setProject(res.project, true);
     } catch (err) {
       alert(`Błąd ładowania wzorca: ${err.message}`);
     } finally {
@@ -1014,13 +1378,12 @@
       document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
       if (tab === 'cad') {
         document.getElementById('view-cad').classList.remove('hidden');
-        renderCanvas();
+        resizeCanvas();
       } else if (tab === 'nesting') {
         document.getElementById('view-nesting').classList.remove('hidden');
         loadNestingPreview();
       } else if (tab === 'diagnostics') {
         document.getElementById('view-diagnostics').classList.remove('hidden');
-        // Refresh diagnostic image
         document.getElementById('diagnostic-sheet-img').src = `/api/diagnostics/contact-sheet?t=${Date.now()}`;
       }
     });
@@ -1064,8 +1427,8 @@
       if (page.placements && page.placements.length > 0) {
         itemsSummary += `<p class="text-xs text-sky-400 font-medium">Całe elementy: ${page.placements.map(pl => pl.piece_name).join(', ')}</p>`;
       }
-      if (page.tiles && page.tiles.length > 0) {
-        itemsSummary += `<p class="text-xs text-amber-400 font-medium">Kafelki: ${page.tiles.map(t => `${t.piece_name} (${t.tile_idx + 1}/${t.total_tiles})`).join(', ')}</p>`;
+      if (page.is_tiled && page.piece_name) {
+        itemsSummary += `<p class="text-xs text-amber-400 font-medium">Kafelek elementu: ${page.piece_name}</p>`;
       }
 
       card.innerHTML = `
@@ -1187,8 +1550,9 @@
     try {
       const url = `/api/digitize?seam_mode=${seamMode}&seam_allowance_mm=${seamMm}&auto_unfold=${autoUnfold}&max_bezier_error_mm=${bezierError}`;
       const res = await apiCall(url, 'POST', formData);
-      setProject(res.project);
-      fitViewToProject();
+      state.hiddenPieceIds.clear();
+      state.pieceOffsets = {};
+      setProject(res.project, true);
       alert(`Sukces! Zdygitalizowano ${res.pieces_count} elementów wykroju.`);
     } catch (err) {
       alert(`Błąd dygitalizacji: ${err.message}`);

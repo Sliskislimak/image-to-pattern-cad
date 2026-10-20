@@ -237,7 +237,7 @@ def create_app() -> FastAPI:
     def unfold_piece_endpoint(piece_id: str) -> Dict[str, Any]:
         try:
             idx, piece = session.find_piece(piece_id)
-            unfolded = unfold_piece_on_fold(piece)
+            unfolded = unfold_piece_on_fold(piece).model_copy(update={"id": piece.id})
             new_pieces = list(session.project.pieces)
             new_pieces[idx] = unfolded
             session.project = session.project.model_copy(update={"pieces": new_pieces})

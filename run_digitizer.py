@@ -30,6 +30,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Auto-activate local .venv if invoked with system/global python
+_VENV_PYTHON = (
+    PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
+    if sys.platform == "win32"
+    else PROJECT_ROOT / ".venv" / "bin" / "python"
+)
+if _VENV_PYTHON.is_file() and Path(sys.executable).resolve() != _VENV_PYTHON.resolve():
+    import subprocess
+    sys.exit(subprocess.call([str(_VENV_PYTHON), *sys.argv]))
+
 from src.core.geometry import get_contour_dimensions_mm
 from src.digitizer.pipeline import DigitizerPipeline
 

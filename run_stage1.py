@@ -9,6 +9,18 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+
+# Auto-activate local .venv if invoked with system/global python
+PROJECT_ROOT = Path(__file__).resolve().parent
+_VENV_PYTHON = (
+    PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
+    if sys.platform == "win32"
+    else PROJECT_ROOT / ".venv" / "bin" / "python"
+)
+if _VENV_PYTHON.is_file() and Path(sys.executable).resolve() != _VENV_PYTHON.resolve():
+    import subprocess
+    sys.exit(subprocess.call([str(_VENV_PYTHON), *sys.argv]))
+
 import pymupdf as fitz
 
 from src.core.geometry import get_contour_dimensions_mm

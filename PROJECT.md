@@ -58,6 +58,10 @@ The Stage 2 Pattern Semantic Digitizer transforms raw raster sewing pattern imag
 | F18 | Visual Diagnostic Suite | Generates 5 high-resolution diagnostic images in `output/stage2_digitizer/` visualizing segmentation masks, corner vertices, Bézier control polygons, semantic features, and calibrated rulers. | M4 | survey |
 | F19 | Clo3D DXF-AAMA Dual-Contour Export | Exports digitized project to AutoCAD R12 DXF with AAMA Layers: 1 (Cut), 2 (Notches), 4 (Internal/Sewing line), 5 (Fold axis), 7 (Grainline), 8 (Text). | M4 | survey |
 | F20 | A4 Multi-Page Tiler Integration | Routes digitized pieces into `src/nesting/a4_nester.py` and `src/exporters/a4_tiler_pdf.py` for Hybrid & Poster home printing with 50x50 mm calibration square. | M4 | survey |
+| F21 | Interactive Vector CAD Canvas | HTML5 Canvas 2D engine with 1:1 mm grid, pan/zoom, Bézier handles, seam preview, and piece selection. | M6 | survey |
+| F22 | FastAPI Tailoring Studio Backend | REST API for project state, live tailoring operations, raster image upload, and binary CAD/PDF downloads. | M6 | survey |
+| F23 | 1-Click Tailoring Actions | Real-time fold edge unfolding (`unfold_piece_on_fold`), horizontal mirroring, edge role assignment, and seam adjustments. | M6 | survey |
+| F24 | Interactive Nesting & Tiling Preview | Multi-page A4 print layout preview with margins, overlap guides, and alignment diamonds. | M6 | survey |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
@@ -67,6 +71,7 @@ The Stage 2 Pattern Semantic Digitizer transforms raw raster sewing pattern imag
 | M3 | Tailoring Line & Semantic Feature Classifier | F10, F11, F12, F13, F14, F15, F16 (`src/digitizer/semantic_classifier.py`) | M2 | DONE |
 | M4 | End-to-End Pipeline, CLI Runner, Overlays, Tests & Docs | F17, F18, F19, F20 (`src/digitizer/pipeline.py`, `run_digitizer.py`, `output/stage2_digitizer/`, `tests/test_stage2_digitizer.py`, `README.md`) | M3 | DONE |
 | M5 | Comprehensive Verification, Dual-Track E2E & Hardening | Full suite pass (83 existing + Stage 2 digitizer tests, 0 failures), forensic audit, sample image validation | M4 | DONE |
+| M6 | Stage 4: Interactive Web CAD Studio & FastAPI Server | F21, F22, F23, F24 (`src/ui/`, `run_server.py`, `tests/test_ui_server.py`, `README.md`) | M5 | DONE |
 
 ## Interface Contracts
 

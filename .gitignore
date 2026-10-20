@@ -20,3 +20,6 @@ ORIGINAL_REQUEST.md
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# UI temporary uploads & digitizer cache
+output/ui_digitizer/

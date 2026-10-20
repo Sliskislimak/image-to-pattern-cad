@@ -374,7 +374,52 @@ Wszystkie funkcjonalności Etapu 2 zostały pokryte testami automatycznymi w `te
 
 ---
 
-## 🛠️ Wykorzystane Technologie i Uzasadnienie Wyboru
+## 💻 ETAP 4: Interaktywny Cyfrowy Warsztat Krawiecki (CAD Studio Web UI)
+
+W Etapie 4 powstała kompletna, interaktywna aplikacja webowa CAD uruchamiana jednym poleceniem (`python run_server.py`), łącząca zaawansowany silnik backendowy **FastAPI** z dedykowanym interfejsem graficznym **Tailoring CAD Studio (SPA)**:
+
+```
+[Przeglądarka Web SPA] (HTML5 / Tailwind / Lucide / Canvas 2D)
+         │
+         │  REST API (JSON / FormData / Binary Downloads)
+         ▼
+[Serwer Aplikacji FastAPI] (src/ui/server.py & run_server.py)
+   ├─ GET  /api/health & /api/presets
+   ├─ GET/POST /api/project (Zarządzanie stanem sesji CAD)
+   ├─ POST /api/digitize (Wgrywanie plików JPG/PNG & Potok Schneidera)
+   ├─ POST /api/pieces/{id}/unfold (1-klik rozkładanie zgięć)
+   ├─ POST /api/pieces/{id}/mirror (Odbicie lustrzane X)
+   ├─ POST /api/pieces/{id}/seam-allowance (Suwak naddatków per-element)
+   ├─ POST /api/pieces/{id}/segments/{idx}/role (Zmiana roli: fold, elastic, hem, seam)
+   ├─ POST /api/nesting/calculate (Podgląd kafelkowania A4 Hybrid & Poster)
+   └─ GET  /api/export/* (DXF-AAMA, 1:1 Clo3D PDF, Arkusz Techniczny, A4 Print PDF, JSON)
+```
+
+### Najważniejsze Cechy Cyfrowego Studia CAD:
+1. **Wektorowy Canvas 2D w Skali 1:1**:
+   - Płynna nawigacja: Pan (przeciąganie myszą ze spacją lub środkowym przyciskiem) oraz Zoom kółkiem myszy skupiony wokół kursora,
+   - Adaptacyjna siatka milimetrowa ($10\text{ mm}$, $50\text{ mm}$, $100\text{ mm}$) z układem współrzędnych CAD (początek w lewym dolnym rogu, oś Y w górę),
+   - Prezentacja tkaniny (półprzezroczysty fill), linii cięcia brutto (solid amber), linii szycia netto (dashed cyan), punktów węzłowych, krzywych Béziera, zaszewek i karbików montażowych,
+   - Inspekcja węzłów kontrolnych CP1/CP2 krzywych sześciennych Béziera.
+2. **Edycja Krawiecka na Żywo (Live Inspector)**:
+   - **1-Klik Unfold**: zaznacz element z linią zgięcia materiału i kliknij *"Rozłóż (Unfold)"*, aby uzyskać pełny, rozłożony szablon 1:1 gotowy do wykrojenia,
+   - **Odbicie Lustrzane**: 1-klikowe generowanie symetrycznego elementu,
+   - **Role Krawędzi**: kliknij dowolny segment, aby zmienić jego rolę (`seam`, `fold`, `hem`, `elastic`, `raw`) lub przypisać indywidualny naddatek na szew,
+   - **Skalowanie Anizotropowe**: wprowadź docelowe wymiary $W \times H\text{ cm}$, aby natychmiast wyzerować błędy zniekształceń rysunków rastrowych.
+3. **Podgląd Wydruku A4 (Nesting & Tiling Preview)**:
+   - Wizualna siatka wszystkich wygenerowanych arkuszy A4 z podziałem na strony, marginesami $10\text{ mm}$, zakładkami klejenia $15\text{ mm}$, paserami i kwadratem $5 \times 5\text{ cm}$.
+4. **Wbudowany Dygitalizator (Drag & Drop)**:
+   - Wgrywanie dowolnej grafiki z internetu z poziomu okna modalnego z wyborem trybu naddatków i tolerancji wektoryzacji.
+5. **Eksporter Produkcyjny 1-Klik**:
+   - Szybkie pobieranie gotowych plików DXF-AAMA R12, Clo3D 1:1 Vector PDF, Arkusza Technicznego PDF, szablonów A4 oraz kontraktu JSON.
+
+#### Jak Uruchomić Studio CAD:
+```powershell
+python run_server.py
+```
+Aplikacja automatycznie otworzy przeglądarkę pod adresem `http://127.0.0.1:8000`.
+
+---
 
 | Biblioteka / Narzędzie | Wersja | Rola w Etapie 1 | Rola w Etapie 2 | Dlaczego właśnie to narzędzie? |
 | :--- | :--- | :--- | :--- | :--- |
@@ -566,7 +611,22 @@ flowchart TD
   - Tryb Hybrydowy (pakowanie całych elementów na A4 + kafelkowanie ponadwymiarowych).
   - Tryb Plakatowy (siatka $4 \times 3$ arkuszy ze wspólnego arkusza).
   - Zakładki klejenia $15\text{ mm}$, romby pasowania $R-C$, mini-mapa montażowa i kwadrat kalibracyjny $50 \times 50\text{ mm}$.
-- [ ] **Etap 4: Wizualny Edytor / UI (React + TypeScript + Paper.js / FastAPI)**
-  - Interaktywny podgląd wektorowy w przeglądarce,
-  - Możliwość kliknięcia dowolnej krawędzi i zmiany jej typu (np. oznaczenie jako *zgięcie materiału* z natychmiastowym rozłożeniem *Unfold*).
+- [x] **Etap 4: Wizualny Edytor / UI (FastAPI + Interaktywne Studio CAD 1:1) [UKOŃCZONY]**
+  - Kompletny zintegrowany serwer aplikacji webowej (`run_server.py`, `src/ui/server.py`).
+  - Interaktywny 2D Vector CAD Canvas (`src/ui/static/app.js`):
+    - Skala fizyczna 1:1 z podziałką milimetrową i adaptacyjną siatką CAD,
+    - Płynny Pan i Zoom kółkiem myszy z centrowaniem na kursorze,
+    - Renderowanie linii cięcia (solid amber), linii szycia (dashed cyan), punktów węzłowych, krzywych Béziera CP1/CP2, zaszewek i karbików montażowych.
+  - Edycja semantyki krawieckiej na żywo:
+    - 1-klik Unfold wzdłuż linii zgięcia (`unfold_piece_on_fold`),
+    - Odbicie lustrzane w osi X (`mirror_piece_x`),
+    - Zmiana ról krawędzi (`seam`, `fold`, `hem`, `elastic`, `raw`) oraz naddatku per-krawędź,
+    - Suwaki naddatków na szew (globalne oraz per-element) w czasie rzeczywistym.
+  - Wizualny podgląd kafelkowania A4:
+    - Prezentacja wszystkich wygenerowanych arkuszy A4 z marginesami 10 mm, pasami klejenia 15 mm i paserami $R-C$.
+  - Wbudowany dygitalizator (Drag & Drop):
+    - Wgrywanie surowych grafik z natychmiastową percepcją i wektoryzacją Schneidera.
+  - Szybki 1-klik eksport z poziomu menu UI:
+    - Clo3D DXF-AAMA (AutoCAD R12), Clo3D 1:1 PDF, Arkusz Techniczny PDF, wielostronicowy A4 Print PDF, kontrakt JSON.
+
 

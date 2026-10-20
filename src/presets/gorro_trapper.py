@@ -253,24 +253,25 @@ def build_orejera_compuesta() -> PatternPiece:
     ]
 
     # Linie wewnętrzne z rysunku konstrukcyjnego (czerwone linie podziału A / V)
+    # Wierzchołek zbiegu linii leży na przednim wklęsłym łuku na wysokości y = 115.0 mm (x = 116.8 mm)
     internal_lines = [
         InternalLine(
             id="orejera_horizontal_8",
             label="Line 8cm",
             line_type="cut_guide",
-            contour=Contour.from_polyline([(132.0, 115.0), (250.0, 115.0)], is_closed=False),
+            contour=Contour.from_polyline([(116.8, 115.0), (250.0, 115.0)], is_closed=False),
         ),
         InternalLine(
             id="orejera_dart_v_lower",
             label="V-cut 1",
             line_type="dart",
-            contour=Contour.from_polyline([(132.0, 115.0), (218.0, 20.0)], is_closed=False),
+            contour=Contour.from_polyline([(116.8, 115.0), (220.0, 20.0)], is_closed=False),
         ),
         InternalLine(
             id="orejera_dart_v_upper",
             label="V-cut 2 (3cm)",
             line_type="dart",
-            contour=Contour.from_polyline([(145.0, 148.0), (248.0, 20.0)], is_closed=False),
+            contour=Contour.from_polyline([(116.8, 115.0), (250.0, 20.0)], is_closed=False),
         ),
     ]
 

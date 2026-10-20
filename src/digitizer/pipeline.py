@@ -519,14 +519,7 @@ class DigitizerPipeline:
                 fabric_note=fab_note,
             )
 
-            # 4. Anisotropic Calibration if target dimensions exist
-            if declared_dimensions and p_id in declared_dimensions:
-                dw, dh = declared_dimensions[p_id]
-                piece = calibrate_piece_by_dimensions(piece, dw, dh)
-            elif spec:
-                piece = calibrate_piece_by_dimensions(piece, spec["width_cm"], spec["height_cm"])
-
-            # 5. Semantic Feature Classification
+            # 4. Semantic Feature Classification (prior to anisotropic scaling)
             # Fold edge detection
             piece = detect_fold_edge(piece, text_hint=fab_note, edge_hint=(fold_hint or "auto"))
 
@@ -538,6 +531,13 @@ class DigitizerPipeline:
                 transform=v_res.transform,
                 piece_mask=sp.mask,
             )
+
+            # 5. Anisotropic Calibration if target dimensions exist (scales outer contour + internal lines)
+            if declared_dimensions and p_id in declared_dimensions:
+                dw, dh = declared_dimensions[p_id]
+                piece = calibrate_piece_by_dimensions(piece, dw, dh)
+            elif spec:
+                piece = calibrate_piece_by_dimensions(piece, spec["width_cm"], spec["height_cm"])
 
             # Seam allowance mode handling
             piece = classify_seam_mode(
